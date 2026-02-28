@@ -4,6 +4,11 @@ import {
   setDoc, 
   updateDoc, 
   onSnapshot,
+  collection,
+  getDocs,
+  query,
+  orderBy,
+  deleteDoc,
   Firestore,
   DocumentSnapshot,
   Unsubscribe,
@@ -177,4 +182,64 @@ export function subscribeToGame(
       callback(null)
     }
   )
+}
+
+/**
+ * 獲取所有房間列表
+ */
+export async function getAllRooms(): Promise<GameData[]> {
+  try {
+    const gamesRef = collection(db, 'games')
+    const q = query(gamesRef, orderBy('created_at', 'desc'))
+    const querySnapshot = await getDocs(q)
+    
+    return querySnapshot.docs.map(doc => ({
+      room_id: doc.id, // 使用 document ID 作為 room_id
+      ...doc.data()
+    } as GameData))
+  } catch (error) {
+    console.error('Error getting all rooms:', error)
+    throw error
+  }
+}
+
+/**
+ * 訂閱所有房間的實時更新
+ */
+export function subscribeToAllRooms(
+  callback: (rooms: GameData[]) => void
+): Unsubscribe {
+  const gamesRef = collection(db, 'games')
+  const q = query(gamesRef, orderBy('created_at', 'desc'))
+  
+  return onSnapshot(
+    q,
+    (querySnapshot) => {
+      const rooms = querySnapshot.docs.map(doc => ({
+        room_id: doc.id, // 使用 document ID 作為 room_id
+        ...doc.data()
+      } as GameData))
+      callback(rooms)
+    },
+    (error) => {
+      console.error('Error subscribing to all rooms:', error)
+      callback([])
+    }
+  )
+}
+
+/**
+ * 刪除所有房間
+ */
+export async function deleteAllRooms(): Promise<void> {
+  try {
+    const gamesRef = collection(db, 'games')
+    const querySnapshot = await getDocs(gamesRef)
+    
+    const deletePromises = querySnapshot.docs.map(doc => deleteDoc(doc.ref))
+    await Promise.all(deletePromises)
+  } catch (error) {
+    console.error('Error deleting all rooms:', error)
+    throw error
+  }
 }

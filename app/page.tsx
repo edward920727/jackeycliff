@@ -103,6 +103,14 @@ export default function Home() {
       >
         📖 遊戲規則
       </button>
+
+      {/* 房間列表按鈕 - 右上角 */}
+      <button
+        onClick={() => router.push('/rooms')}
+        className="absolute top-4 right-4 z-20 px-3 sm:px-4 py-2 bg-gray-800/80 hover:bg-gray-700/80 backdrop-blur-sm rounded-lg transition-all text-xs sm:text-sm font-semibold text-gray-300 hover:text-white border border-gray-600/50 hover:border-gray-500 shadow-lg"
+      >
+        🏠 房間列表
+      </button>
       
       {/* 内容 */}
       <div className="relative z-10 bg-gray-900/90 backdrop-blur-xl rounded-2xl shadow-2xl p-4 sm:p-6 md:p-8 w-full max-w-md border border-gray-700/50">
