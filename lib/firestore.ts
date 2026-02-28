@@ -75,6 +75,37 @@ export async function joinGame(
 ): Promise<void> {
   try {
     const gameRef = doc(db, 'games', roomId)
+    const gameSnap = await getDoc(gameRef)
+    
+    if (!gameSnap.exists()) {
+      throw new Error('遊戲不存在')
+    }
+
+    const gameData = gameSnap.data() as GameData
+    const existingPlayers = gameData.players || []
+
+    // 檢查玩家是否已經在遊戲中
+    const playerExists = existingPlayers.some(p => p.id === player.id)
+    if (playerExists) {
+      // 玩家已存在，不重複添加（這是正常的，因為可能因為網絡問題重試）
+      return
+    }
+
+    // 驗證玩家數據
+    if (!player.id || !player.name || !player.team || !player.role) {
+      throw new Error('玩家數據不完整')
+    }
+
+    // 驗證隊伍值
+    if (player.team !== 'red' && player.team !== 'blue') {
+      throw new Error('無效的隊伍值')
+    }
+
+    // 驗證角色值
+    if (player.role !== 'spymaster' && player.role !== 'operative') {
+      throw new Error('無效的角色值')
+    }
+
     await updateDoc(gameRef, {
       players: arrayUnion(player),
       updated_at: new Date(),
@@ -119,7 +150,10 @@ export async function leaveGame(
 export async function updateGame(
   roomId: string, 
   wordsData: WordCard[], 
-  currentTurn: 'red' | 'blue'
+  currentTurn: 'red' | 'blue',
+  playerId?: string,
+  playerRole?: 'spymaster' | 'operative',
+  playerTeam?: 'red' | 'blue'
 ): Promise<void> {
   try {
     // 驗證數據完整性
@@ -141,11 +175,42 @@ export async function updateGame(
 
     const gameRef = doc(db, 'games', roomId)
     
-    // 使用事務更新（如果 Firestore 支持）
-    // 這裡先獲取當前狀態進行驗證
+    // 獲取當前遊戲狀態進行驗證
     const currentGame = await getDoc(gameRef)
     if (!currentGame.exists()) {
       throw new Error('遊戲不存在')
+    }
+
+    const gameData = currentGame.data() as GameData
+
+    // 服務器端驗證：驗證玩家身份和權限
+    if (playerId && playerRole && playerTeam) {
+      // 驗證玩家是否在遊戲中
+      const player = gameData.players?.find(p => p.id === playerId)
+      if (!player) {
+        throw new Error('您不是此遊戲的玩家')
+      }
+
+      // 驗證玩家角色：隊長不能點擊卡片
+      if (playerRole === 'spymaster') {
+        throw new Error('隊長不能點擊卡片')
+      }
+
+      // 驗證玩家隊伍是否匹配
+      if (player.team !== playerTeam) {
+        throw new Error('玩家隊伍信息不匹配')
+      }
+
+      // 驗證回合：只有當前回合的隊伍才能操作
+      if (gameData.current_turn !== playerTeam) {
+        throw new Error(`現在是${gameData.current_turn === 'red' ? '紅' : '藍'}隊的回合`)
+      }
+
+      // 驗證回合變更是否合理
+      const previousTurn = gameData.current_turn
+      if (currentTurn !== previousTurn && currentTurn !== (previousTurn === 'red' ? 'blue' : 'red')) {
+        throw new Error('無效的回合變更')
+      }
     }
 
     await updateDoc(gameRef, {

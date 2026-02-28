@@ -85,15 +85,19 @@ export default function GamePage() {
           assignedTeam = redCount <= blueCount ? 'red' : 'blue'
         }
         
-        const newPlayer: Player = {
-          id: playerIdRef.current,
-          name: playerName,
-          team: assignedTeam,
-          role: playerRole,
-          joined_at: new Date(),
+        // 檢查玩家是否已經存在，避免重複加入
+        const playerExists = existingPlayers.some(p => p.id === playerIdRef.current)
+        if (!playerExists) {
+          const newPlayer: Player = {
+            id: playerIdRef.current,
+            name: playerName,
+            team: assignedTeam,
+            role: playerRole,
+            joined_at: new Date(),
+          }
+          
+          await joinGame(roomId, newPlayer)
         }
-        
-        await joinGame(roomId, newPlayer)
         playerTeamRef.current = assignedTeam // 儲存玩家隊伍
         hasJoinedRef.current = true
       } catch (err: any) {
@@ -258,8 +262,16 @@ export default function GamePage() {
         throw new Error('卡片數據不完整')
       }
 
-      // 更新資料庫
-      await updateGame(roomId, newCards, newTurn)
+      // 更新資料庫（帶玩家身份驗證）
+      const currentPlayerTeam = playerTeamRef.current
+      await updateGame(
+        roomId, 
+        newCards, 
+        newTurn,
+        playerIdRef.current, // 玩家ID
+        playerRole, // 玩家角色
+        currentPlayerTeam || undefined // 玩家隊伍
+      )
     } catch (err: any) {
       setError(err.message || '更新失敗')
       console.error('Error updating card:', err)
