@@ -479,18 +479,35 @@ export default function GamePage() {
             ? 'bg-red-600/20 border-red-500 shadow-lg shadow-red-500/20'
             : 'bg-blue-600/20 border-blue-500 shadow-lg shadow-blue-500/20'
         }`}>
-          <div className="flex items-center justify-center gap-2 sm:gap-3">
-            <div className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full animate-pulse ${
-              currentTurn === 'red' ? 'bg-red-500' : 'bg-blue-500'
-            }`}></div>
-            <span className={`text-sm sm:text-base md:text-lg font-bold ${
-              currentTurn === 'red' ? 'text-red-300' : 'text-blue-300'
-            }`}>
-              {currentTurn === 'red' ? '現在是紅隊回合' : '現在是藍隊回合'}
-            </span>
-            <div className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full animate-pulse ${
-              currentTurn === 'red' ? 'bg-red-500' : 'bg-blue-500'
-            }`}></div>
+          <div className="flex items-center justify-between gap-2 sm:gap-3">
+            <div className="flex items-center justify-center gap-2 sm:gap-3 flex-1">
+              <div className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full animate-pulse ${
+                currentTurn === 'red' ? 'bg-red-500' : 'bg-blue-500'
+              }`}></div>
+              <span className={`text-sm sm:text-base md:text-lg font-bold ${
+                currentTurn === 'red' ? 'text-red-300' : 'text-blue-300'
+              }`}>
+                {currentTurn === 'red' ? '現在是紅隊回合' : '現在是藍隊回合'}
+              </span>
+              <div className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full animate-pulse ${
+                currentTurn === 'red' ? 'bg-red-500' : 'bg-blue-500'
+              }`}></div>
+            </div>
+            {/* 結束這回合按鈕 - 只有當前回合的隊員可以看到 */}
+            {playerRole === 'operative' && 
+             playerTeamRef.current === currentTurn && (
+              <button
+                onClick={handleEndTurn}
+                disabled={isUpdating}
+                className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg font-semibold text-xs sm:text-sm transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed ${
+                  currentTurn === 'red'
+                    ? 'bg-red-600 hover:bg-red-500 text-white'
+                    : 'bg-blue-600 hover:bg-blue-500 text-white'
+                }`}
+              >
+                {isUpdating ? '處理中...' : '結束這回合'}
+              </button>
+            )}
           </div>
         </div>
 
