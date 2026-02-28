@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { getAllWordBanks, createWordBank, updateWordBank, deleteWordBank } from '@/lib/wordBank'
+import { getAllWordBanks, createWordBank, updateWordBank, deleteWordBank, createDefaultWordBank1000 } from '@/lib/wordBank'
 import { WordBank } from '@/types/game'
 import { DEFAULT_WORDS } from '@/lib/gameUtils'
 import { DEFAULT_WORD_BANK_100 } from '@/lib/defaultWordBank'
@@ -129,6 +129,19 @@ export default function WordBankPage() {
     }
   }
 
+  const handleCreateDefault1000 = async () => {
+    if (!confirm('確定要創建「機密代號大型題庫（1000個詞彙）」嗎？')) {
+      return
+    }
+    try {
+      await createDefaultWordBank1000()
+      alert('大型1000題庫創建成功！')
+      loadWordBanks()
+    } catch (err: any) {
+      alert(err.message || '創建題庫失敗')
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-900">
@@ -166,6 +179,12 @@ export default function WordBankPage() {
                 className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg transition-colors text-xs sm:text-sm font-semibold"
               >
                 創建100題庫
+              </button>
+              <button
+                onClick={handleCreateDefault1000}
+                className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg transition-colors text-xs sm:text-sm font-semibold"
+              >
+                創建1000題庫
               </button>
               <button
                 onClick={() => {

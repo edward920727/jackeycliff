@@ -1,5 +1,5 @@
 import { WordCard, CardColor } from '@/types/game'
-import { createGame } from './firestore'
+import { createGame, getGame } from './firestore'
 import { getWordBank, randomSelectWords } from './wordBank'
 
 // 預設的 25 個詞彙（可以擴展）
@@ -33,6 +33,51 @@ function generateColorDistribution(): CardColor[] {
 }
 
 /**
+ * 從詞彙列表中選擇不重複的詞彙（盡量避免與上一場重複）
+ */
+function selectWordsAvoidingPrevious(
+  allWords: string[],
+  count: number,
+  previousWords: string[] = []
+): string[] {
+  // 如果沒有上一場的詞彙，直接隨機選擇
+  if (previousWords.length === 0) {
+    return randomSelectWords(allWords, count)
+  }
+
+  // 過濾掉上一場使用的詞彙
+  const availableWords = allWords.filter(word => !previousWords.includes(word))
+  
+  // 如果可用詞彙足夠，直接從中選擇
+  if (availableWords.length >= count) {
+    return randomSelectWords(availableWords, count)
+  }
+  
+  // 如果可用詞彙不足，優先選擇不重複的，不足的部分再從全部詞彙中選擇
+  const selected: string[] = []
+  
+  // 先選擇所有不重複的詞彙
+  if (availableWords.length > 0) {
+    selected.push(...randomSelectWords(availableWords, availableWords.length))
+  }
+  
+  // 如果還需要更多詞彙，從全部詞彙中隨機選擇（可能會有重複，但盡量減少）
+  const remaining = count - selected.length
+  if (remaining > 0) {
+    // 從全部詞彙中選擇，但優先選擇不在已選列表中的
+    const remainingWords = allWords.filter(word => !selected.includes(word))
+    if (remainingWords.length >= remaining) {
+      selected.push(...randomSelectWords(remainingWords, remaining))
+    } else {
+      // 如果還是不夠，只能從全部詞彙中選擇（可能會有重複）
+      selected.push(...randomSelectWords(allWords, remaining))
+    }
+  }
+  
+  return selected.slice(0, count)
+}
+
+/**
  * 初始化遊戲數據並存入 Firestore
  * @param roomId 房間 ID
  * @param wordBankId 可選的題庫 ID，如果不提供則使用預設詞彙
@@ -43,24 +88,49 @@ export async function initializeGame(roomId: string, wordBankId?: string, keepPl
   // 生成隨機顏色分配
   const colors = generateColorDistribution()
   
+  // 獲取上一場使用的詞彙（如果是重置遊戲）
+  let previousWords: string[] = []
+  if (keepPlayers) {
+    try {
+      const previousGame = await getGame(roomId)
+      if (previousGame && previousGame.words_data) {
+        previousWords = previousGame.words_data.map(card => card.word)
+      }
+    } catch (error) {
+      console.error('Error getting previous game words:', error)
+    }
+  }
+  
   // 獲取詞彙列表
-  let words: string[] = DEFAULT_WORDS
+  let allWords: string[] = DEFAULT_WORDS
   if (wordBankId) {
     try {
       const wordBank = await getWordBank(wordBankId)
-      if (wordBank && wordBank.words.length >= 25) {
-        words = randomSelectWords(wordBank.words, 25)
-      } else if (wordBank && wordBank.words.length > 0) {
-        // 如果題庫詞彙不足 25 個，重複使用
-        const selected = randomSelectWords(wordBank.words, Math.min(25, wordBank.words.length))
-        while (selected.length < 25) {
-          selected.push(...randomSelectWords(wordBank.words, Math.min(25 - selected.length, wordBank.words.length)))
-        }
-        words = selected.slice(0, 25)
+      if (wordBank && wordBank.words.length > 0) {
+        allWords = wordBank.words
       }
     } catch (error) {
       console.error('Error loading word bank, using default words:', error)
     }
+  }
+  
+  // 選擇詞彙（盡量避免與上一場重複）
+  let words: string[] = []
+  if (allWords.length >= 25) {
+    words = selectWordsAvoidingPrevious(allWords, 25, previousWords)
+  } else if (allWords.length > 0) {
+    // 如果題庫詞彙不足 25 個，需要重複使用，但盡量減少與上一場的重複
+    const selected = selectWordsAvoidingPrevious(allWords, Math.min(25, allWords.length), previousWords)
+    while (selected.length < 25) {
+      const remaining = 25 - selected.length
+      const additional = selectWordsAvoidingPrevious(
+        allWords, 
+        Math.min(remaining, allWords.length),
+        previousWords.length > 0 ? previousWords : selected // 避免與上一場和當前已選的重複
+      )
+      selected.push(...additional)
+    }
+    words = selected.slice(0, 25)
   }
   
   // 隨機打亂詞彙

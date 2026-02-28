@@ -118,3 +118,20 @@ export function randomSelectWords(words: string[], count: number): string[] {
   const shuffled = [...words].sort(() => Math.random() - 0.5)
   return shuffled.slice(0, count)
 }
+
+/**
+ * 創建預設1000個名詞題庫
+ */
+export async function createDefaultWordBank1000(): Promise<string> {
+  const { DEFAULT_WORD_BANK_1000 } = await import('./defaultWordBank1000')
+  
+  // 檢查是否已經存在
+  const wordBanks = await getAllWordBanks()
+  const existing = wordBanks.find(bank => bank.name === '機密代號大型題庫（1000個詞彙）')
+  
+  if (existing) {
+    throw new Error('題庫「機密代號大型題庫（1000個詞彙）」已存在')
+  }
+  
+  return await createWordBank('機密代號大型題庫（1000個詞彙）', DEFAULT_WORD_BANK_1000)
+}
