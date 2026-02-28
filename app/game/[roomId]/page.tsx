@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useParams, useSearchParams, useRouter } from 'next/navigation'
-import { getGame, updateGame, subscribeToGame } from '@/lib/firestore'
+import { getGame, updateGame, subscribeToGame, joinGame, leaveGame } from '@/lib/firestore'
 import { initializeGame } from '@/lib/gameUtils'
-import { WordCard, CardColor, PlayerRole } from '@/types/game'
+import { WordCard, CardColor, PlayerRole, Player } from '@/types/game'
 
 export default function GamePage() {
   const params = useParams()
@@ -14,11 +14,14 @@ export default function GamePage() {
   
   const [cards, setCards] = useState<WordCard[]>([])
   const [currentTurn, setCurrentTurn] = useState<'red' | 'blue'>('red')
+  const [players, setPlayers] = useState<Player[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [playerRole, setPlayerRole] = useState<PlayerRole>(
-    (searchParams.get('role') || 'operative') as PlayerRole
-  )
+  // 角色和名字在進入房間時確定，之後不能更改
+  const playerRole = (searchParams.get('role') || 'operative') as PlayerRole
+  const playerName = searchParams.get('name') || '匿名玩家'
+  const playerIdRef = useRef<string>(`player_${Date.now()}_${Math.random().toString(36).substring(7)}`)
+  const hasJoinedRef = useRef(false)
   const [confirmDialog, setConfirmDialog] = useState<{
     show: boolean
     cardIndex: number | null
@@ -36,11 +39,13 @@ export default function GamePage() {
           // 遊戲已存在，載入數據
           setCards(existingGame.words_data)
           setCurrentTurn(existingGame.current_turn)
+          setPlayers(existingGame.players || [])
         } else {
           // 創建新遊戲（initializeGame 會自動存入 Firestore）
           const initialCards = await initializeGame(roomId)
           setCards(initialCards)
           setCurrentTurn('red')
+          setPlayers([])
         }
       } catch (err: any) {
         setError(err.message || '載入遊戲失敗')
@@ -53,6 +58,50 @@ export default function GamePage() {
     loadOrCreateGame()
   }, [roomId])
 
+  // 加入遊戲
+  useEffect(() => {
+    async function addPlayer() {
+      if (loading || hasJoinedRef.current) return
+      
+      try {
+        // 自動分配隊伍（根據現有玩家數量）
+        const existingGame = await getGame(roomId)
+        const existingPlayers = existingGame?.players || []
+        const redCount = existingPlayers.filter(p => p.team === 'red').length
+        const blueCount = existingPlayers.filter(p => p.team === 'blue').length
+        
+        // 分配隊伍：較少人的隊伍優先
+        const assignedTeam = redCount <= blueCount ? 'red' : 'blue'
+        
+        const newPlayer: Player = {
+          id: playerIdRef.current,
+          name: playerName,
+          team: assignedTeam,
+          role: playerRole,
+          joined_at: new Date(),
+        }
+        
+        await joinGame(roomId, newPlayer)
+        hasJoinedRef.current = true
+      } catch (err: any) {
+        console.error('Error joining game:', err)
+      }
+    }
+
+    if (!loading) {
+      addPlayer()
+    }
+  }, [roomId, loading, playerName, playerRole])
+
+  // 離開遊戲時清理
+  useEffect(() => {
+    return () => {
+      if (hasJoinedRef.current) {
+        leaveGame(roomId, playerIdRef.current).catch(console.error)
+      }
+    }
+  }, [roomId])
+
   // 訂閱實時更新
   useEffect(() => {
     if (loading) return
@@ -61,6 +110,7 @@ export default function GamePage() {
       if (gameData) {
         setCards(gameData.words_data)
         setCurrentTurn(gameData.current_turn)
+        setPlayers(gameData.players || [])
       }
     })
 
@@ -252,40 +302,101 @@ export default function GamePage() {
               </div>
             </div>
           </div>
+
+          {/* 隊伍成員列表 */}
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className="bg-red-600/10 border border-red-500/30 rounded-lg p-4">
+              <div className="text-sm font-semibold text-red-300 mb-3 flex items-center gap-2">
+                <span>🔴</span>
+                <span>紅隊成員</span>
+                <span className="text-xs text-red-400">
+                  ({players.filter(p => p.team === 'red').length} 人)
+                </span>
+              </div>
+              <div className="space-y-2">
+                {players.filter(p => p.team === 'red').length === 0 ? (
+                  <div className="text-xs text-gray-500 italic">等待玩家加入...</div>
+                ) : (
+                  players
+                    .filter(p => p.team === 'red')
+                    .map((player) => (
+                      <div
+                        key={player.id}
+                        className={`flex items-center justify-between text-sm p-2 rounded ${
+                          player.id === playerIdRef.current
+                            ? 'bg-red-500/20 border border-red-500/50'
+                            : 'bg-gray-700/30'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-red-300">{player.name}</span>
+                          {player.id === playerIdRef.current && (
+                            <span className="text-xs text-red-400">(你)</span>
+                          )}
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          {player.role === 'spymaster' ? '👁️ 隊長' : '👤 隊員'}
+                        </div>
+                      </div>
+                    ))
+                )}
+              </div>
+            </div>
+            <div className="bg-blue-600/10 border border-blue-500/30 rounded-lg p-4">
+              <div className="text-sm font-semibold text-blue-300 mb-3 flex items-center gap-2">
+                <span>🔵</span>
+                <span>藍隊成員</span>
+                <span className="text-xs text-blue-400">
+                  ({players.filter(p => p.team === 'blue').length} 人)
+                </span>
+              </div>
+              <div className="space-y-2">
+                {players.filter(p => p.team === 'blue').length === 0 ? (
+                  <div className="text-xs text-gray-500 italic">等待玩家加入...</div>
+                ) : (
+                  players
+                    .filter(p => p.team === 'blue')
+                    .map((player) => (
+                      <div
+                        key={player.id}
+                        className={`flex items-center justify-between text-sm p-2 rounded ${
+                          player.id === playerIdRef.current
+                            ? 'bg-blue-500/20 border border-blue-500/50'
+                            : 'bg-gray-700/30'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-blue-300">{player.name}</span>
+                          {player.id === playerIdRef.current && (
+                            <span className="text-xs text-blue-400">(你)</span>
+                          )}
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          {player.role === 'spymaster' ? '👁️ 隊長' : '👤 隊員'}
+                        </div>
+                      </div>
+                    ))
+                )}
+              </div>
+            </div>
+          </div>
           
           <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
-            <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center justify-between flex-wrap gap-2">
               <div>
                 <span className="text-gray-400">房間代碼：</span>
                 <span className="font-mono text-xl font-bold text-white">{roomId}</span>
               </div>
-              
-              {/* 隊長/隊員模式切換 */}
-              <div className="flex items-center gap-3">
-                <span className="text-sm text-gray-400">模式：</span>
-                <div className="flex gap-2 bg-gray-700/50 rounded-lg p-1">
-                  <button
-                    onClick={() => setPlayerRole('spymaster')}
-                    className={`px-4 py-2 rounded-md text-sm font-semibold transition-all ${
-                      playerRole === 'spymaster'
-                        ? 'bg-blue-600 text-white shadow-lg'
-                        : 'text-gray-400 hover:text-gray-200'
-                    }`}
-                  >
-                    👁️ 隊長
-                  </button>
-                  <button
-                    onClick={() => setPlayerRole('operative')}
-                    className={`px-4 py-2 rounded-md text-sm font-semibold transition-all ${
-                      playerRole === 'operative'
-                        ? 'bg-green-600 text-white shadow-lg'
-                        : 'text-gray-400 hover:text-gray-200'
-                    }`}
-                  >
-                    👤 隊員
-                  </button>
-                </div>
+              <div className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                playerRole === 'spymaster'
+                  ? 'bg-blue-500/20 text-blue-300 border border-blue-500/50'
+                  : 'bg-green-500/20 text-green-300 border border-green-500/50'
+              }`}>
+                {playerRole === 'spymaster' ? '👁️ 隊長視角' : '👤 隊員視角'}
               </div>
+            </div>
+            <div className="mt-2 text-xs text-gray-500">
+              💡 提示：角色在進入房間時已確定，無法更改以確保遊戲公平性
             </div>
           </div>
         </div>

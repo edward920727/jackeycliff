@@ -5,18 +5,29 @@ import { useRouter } from 'next/navigation'
 
 export default function Home() {
   const [roomId, setRoomId] = useState('')
+  const [playerName, setPlayerName] = useState('')
   const [playerRole, setPlayerRole] = useState<'spymaster' | 'operative'>('operative')
   const router = useRouter()
 
   const handleCreateRoom = () => {
+    if (!playerName.trim()) {
+      alert('請輸入您的名字')
+      return
+    }
     const newRoomId = Math.random().toString(36).substring(2, 8).toUpperCase()
-    router.push(`/game/${newRoomId}?role=${playerRole}`)
+    router.push(`/game/${newRoomId}?role=${playerRole}&name=${encodeURIComponent(playerName.trim())}`)
   }
 
   const handleJoinRoom = () => {
-    if (roomId.trim()) {
-      router.push(`/game/${roomId.toUpperCase()}?role=${playerRole}`)
+    if (!roomId.trim()) {
+      alert('請輸入房間代碼')
+      return
     }
+    if (!playerName.trim()) {
+      alert('請輸入您的名字')
+      return
+    }
+    router.push(`/game/${roomId.toUpperCase()}?role=${playerRole}&name=${encodeURIComponent(playerName.trim())}`)
   }
 
   return (
@@ -28,6 +39,20 @@ export default function Home() {
         <p className="text-center text-gray-400 mb-8">Codenames Online</p>
 
         <div className="space-y-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              輸入您的名字
+            </label>
+            <input
+              type="text"
+              value={playerName}
+              onChange={(e) => setPlayerName(e.target.value)}
+              placeholder="例如: 小明"
+              className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              maxLength={20}
+            />
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
               選擇角色

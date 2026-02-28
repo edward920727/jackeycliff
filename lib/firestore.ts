@@ -6,15 +6,18 @@ import {
   onSnapshot,
   Firestore,
   DocumentSnapshot,
-  Unsubscribe
+  Unsubscribe,
+  arrayUnion,
+  arrayRemove
 } from 'firebase/firestore'
 import { db } from './firebase'
-import { WordCard } from '@/types/game'
+import { WordCard, Player } from '@/types/game'
 
 export interface GameData {
   room_id: string
   words_data: WordCard[]
   current_turn: 'red' | 'blue'
+  players: Player[]
   created_at?: any
   updated_at?: any
 }
@@ -47,6 +50,7 @@ export async function createGame(roomId: string, wordsData: WordCard[]): Promise
       room_id: roomId,
       words_data: wordsData,
       current_turn: 'red',
+      players: [],
       created_at: new Date(),
       updated_at: new Date(),
     }
@@ -54,6 +58,53 @@ export async function createGame(roomId: string, wordsData: WordCard[]): Promise
   } catch (error) {
     console.error('Error creating game:', error)
     throw error
+  }
+}
+
+/**
+ * 加入遊戲（添加玩家）
+ */
+export async function joinGame(
+  roomId: string,
+  player: Player
+): Promise<void> {
+  try {
+    const gameRef = doc(db, 'games', roomId)
+    await updateDoc(gameRef, {
+      players: arrayUnion(player),
+      updated_at: new Date(),
+    })
+  } catch (error) {
+    console.error('Error joining game:', error)
+    throw error
+  }
+}
+
+/**
+ * 離開遊戲（移除玩家）
+ */
+export async function leaveGame(
+  roomId: string,
+  playerId: string
+): Promise<void> {
+  try {
+    const gameRef = doc(db, 'games', roomId)
+    const gameSnap = await getDoc(gameRef)
+    
+    if (gameSnap.exists()) {
+      const gameData = gameSnap.data() as GameData
+      const playerToRemove = gameData.players.find(p => p.id === playerId)
+      
+      if (playerToRemove) {
+        await updateDoc(gameRef, {
+          players: arrayRemove(playerToRemove),
+          updated_at: new Date(),
+        })
+      }
+    }
+  } catch (error) {
+    console.error('Error leaving game:', error)
+    // 不抛出错误，因为离开时可能已经断开连接
   }
 }
 
