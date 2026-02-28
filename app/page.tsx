@@ -32,19 +32,23 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
-      {/* 背景图片 */}
-      <div 
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-        style={{
-          backgroundImage: 'url(/background.jpg)',
-        }}
-      >
-        {/* 深色覆盖层，确保文字可读性（根据图片亮度调整） */}
-        <div className="absolute inset-0 bg-black/70"></div>
-      </div>
-      
-      {/* 备用渐变背景（如果图片未加载） */}
+      {/* 渐变背景 */}
       <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900"></div>
+      
+      {/* 右侧背景图片 */}
+      <div className="absolute right-0 top-0 bottom-0 w-1/2 hidden md:block">
+        <div 
+          className="h-full w-full"
+          style={{
+            backgroundImage: 'url(/background.jpg)',
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+          }}
+        />
+        {/* 右侧图片的轻微覆盖层 */}
+        <div className="absolute inset-0 bg-black/30"></div>
+      </div>
       
       {/* 内容 */}
       <div className="relative z-10 bg-gray-900/90 backdrop-blur-xl rounded-2xl shadow-2xl p-8 w-full max-w-md border border-gray-700/50">
