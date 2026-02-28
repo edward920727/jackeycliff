@@ -75,10 +75,10 @@ export default function GamePage() {
         let assignedTeam: 'red' | 'blue'
         
         if (selectedTeam) {
-          // 如果已經選擇了隊伍（隊長），使用選擇的隊伍
+          // 如果已經選擇了隊伍（從URL參數），使用選擇的隊伍
           assignedTeam = selectedTeam
         } else {
-          // 隊員自動分配隊伍（根據現有玩家數量）
+          // 如果沒有選擇隊伍，自動分配隊伍（根據現有玩家數量）
           const redCount = existingPlayers.filter(p => p.team === 'red').length
           const blueCount = existingPlayers.filter(p => p.team === 'blue').length
           // 分配隊伍：較少人的隊伍優先

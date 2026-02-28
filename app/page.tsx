@@ -35,18 +35,16 @@ export default function Home() {
       alert('請輸入您的名字')
       return
     }
-    if (playerRole === 'spymaster' && !playerTeam) {
-      alert('隊長請選擇隊伍（紅隊或藍隊）')
+    if (!playerTeam) {
+      alert('請選擇隊伍（紅隊或藍隊）')
       return
     }
     const newRoomId = Math.random().toString(36).substring(2, 8).toUpperCase()
     const params = new URLSearchParams({
       role: playerRole,
       name: playerName.trim(),
+      team: playerTeam, // 隊伍是必選的
     })
-    if (playerTeam) {
-      params.append('team', playerTeam)
-    }
     if (selectedWordBank) {
       params.append('wordBank', selectedWordBank)
     }
@@ -62,17 +60,15 @@ export default function Home() {
       alert('請輸入您的名字')
       return
     }
-    if (playerRole === 'spymaster' && !playerTeam) {
-      alert('隊長請選擇隊伍（紅隊或藍隊）')
+    if (!playerTeam) {
+      alert('請選擇隊伍（紅隊或藍隊）')
       return
     }
     const params = new URLSearchParams({
       role: playerRole,
       name: playerName.trim(),
+      team: playerTeam, // 隊伍是必選的
     })
-    if (playerTeam) {
-      params.append('team', playerTeam)
-    }
     router.push(`/game/${roomId.toUpperCase()}?${params.toString()}`)
   }
 
@@ -196,38 +192,40 @@ export default function Home() {
             </div>
           </div>
 
-          {/* 隊長選擇隊伍 */}
-          {playerRole === 'spymaster' && (
-            <div>
-              <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-2">
-                選擇隊伍（隊長必選）
-              </label>
-              <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                <button
-                  onClick={() => setPlayerTeam('red')}
-                  className={`p-2 sm:p-3 rounded-lg border-2 transition-all ${
-                    playerTeam === 'red'
-                      ? 'border-red-500 bg-red-500/20 text-red-300'
-                      : 'border-gray-600 bg-gray-700/50 text-gray-400 hover:border-gray-500'
-                  }`}
-                >
-                  <div className="font-semibold text-xs sm:text-sm">🔴 紅隊</div>
-                  <div className="text-[10px] sm:text-xs mt-1">紅隊隊長</div>
-                </button>
-                <button
-                  onClick={() => setPlayerTeam('blue')}
-                  className={`p-2 sm:p-3 rounded-lg border-2 transition-all ${
-                    playerTeam === 'blue'
-                      ? 'border-blue-500 bg-blue-500/20 text-blue-300'
-                      : 'border-gray-600 bg-gray-700/50 text-gray-400 hover:border-gray-500'
-                  }`}
-                >
-                  <div className="font-semibold text-xs sm:text-sm">🔵 藍隊</div>
-                  <div className="text-[10px] sm:text-xs mt-1">藍隊隊長</div>
-                </button>
-              </div>
+          {/* 選擇隊伍 */}
+          <div>
+            <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-2">
+              選擇隊伍（必選）
+            </label>
+            <div className="grid grid-cols-2 gap-2 sm:gap-3">
+              <button
+                onClick={() => setPlayerTeam('red')}
+                className={`p-2 sm:p-3 rounded-lg border-2 transition-all ${
+                  playerTeam === 'red'
+                    ? 'border-red-500 bg-red-500/20 text-red-300'
+                    : 'border-gray-600 bg-gray-700/50 text-gray-400 hover:border-gray-500'
+                }`}
+              >
+                <div className="font-semibold text-xs sm:text-sm">🔴 紅隊</div>
+                <div className="text-[10px] sm:text-xs mt-1">
+                  {playerRole === 'spymaster' ? '紅隊隊長' : '紅隊隊員'}
+                </div>
+              </button>
+              <button
+                onClick={() => setPlayerTeam('blue')}
+                className={`p-2 sm:p-3 rounded-lg border-2 transition-all ${
+                  playerTeam === 'blue'
+                    ? 'border-blue-500 bg-blue-500/20 text-blue-300'
+                    : 'border-gray-600 bg-gray-700/50 text-gray-400 hover:border-gray-500'
+                }`}
+              >
+                <div className="font-semibold text-xs sm:text-sm">🔵 藍隊</div>
+                <div className="text-[10px] sm:text-xs mt-1">
+                  {playerRole === 'spymaster' ? '藍隊隊長' : '藍隊隊員'}
+                </div>
+              </button>
             </div>
-          )}
+          </div>
 
           <div>
             <button

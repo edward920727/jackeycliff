@@ -37,8 +37,8 @@ export default function RoomsPage() {
       alert('請先輸入您的名字')
       return
     }
-    if (playerRole === 'spymaster' && !playerTeam) {
-      alert('隊長請選擇隊伍（紅隊或藍隊）')
+    if (!playerTeam) {
+      alert('請選擇隊伍（紅隊或藍隊）')
       return
     }
 
@@ -48,10 +48,8 @@ export default function RoomsPage() {
     const params = new URLSearchParams({
       role: playerRole,
       name: playerName.trim(),
+      team: playerTeam, // 隊伍是必選的
     })
-    if (playerTeam) {
-      params.append('team', playerTeam)
-    }
     router.push(`/game/${roomId}?${params.toString()}`)
   }
 
@@ -186,35 +184,39 @@ export default function RoomsPage() {
               </div>
             </div>
 
-            {playerRole === 'spymaster' && (
-              <div className="md:col-span-2">
-                <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-2">
-                  選擇隊伍（隊長必選）
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => setPlayerTeam('red')}
-                    className={`p-2 sm:p-3 rounded-lg border-2 transition-all text-xs sm:text-sm ${
-                      playerTeam === 'red'
-                        ? 'border-red-500 bg-red-500/20 text-red-300'
-                        : 'border-gray-600 bg-gray-700/50 text-gray-400 hover:border-gray-500'
-                    }`}
-                  >
-                    🔴 紅隊
-                  </button>
-                  <button
-                    onClick={() => setPlayerTeam('blue')}
-                    className={`p-2 sm:p-3 rounded-lg border-2 transition-all text-xs sm:text-sm ${
-                      playerTeam === 'blue'
-                        ? 'border-blue-500 bg-blue-500/20 text-blue-300'
-                        : 'border-gray-600 bg-gray-700/50 text-gray-400 hover:border-gray-500'
-                    }`}
-                  >
-                    🔵 藍隊
-                  </button>
-                </div>
+            <div className="md:col-span-2">
+              <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-2">
+                選擇隊伍（必選）
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setPlayerTeam('red')}
+                  className={`p-2 sm:p-3 rounded-lg border-2 transition-all text-xs sm:text-sm ${
+                    playerTeam === 'red'
+                      ? 'border-red-500 bg-red-500/20 text-red-300'
+                      : 'border-gray-600 bg-gray-700/50 text-gray-400 hover:border-gray-500'
+                  }`}
+                >
+                  <div className="font-semibold">🔴 紅隊</div>
+                  <div className="text-[10px] sm:text-xs mt-1 text-gray-400">
+                    {playerRole === 'spymaster' ? '紅隊隊長' : '紅隊隊員'}
+                  </div>
+                </button>
+                <button
+                  onClick={() => setPlayerTeam('blue')}
+                  className={`p-2 sm:p-3 rounded-lg border-2 transition-all text-xs sm:text-sm ${
+                    playerTeam === 'blue'
+                      ? 'border-blue-500 bg-blue-500/20 text-blue-300'
+                      : 'border-gray-600 bg-gray-700/50 text-gray-400 hover:border-gray-500'
+                  }`}
+                >
+                  <div className="font-semibold">🔵 藍隊</div>
+                  <div className="text-[10px] sm:text-xs mt-1 text-gray-400">
+                    {playerRole === 'spymaster' ? '藍隊隊長' : '藍隊隊員'}
+                  </div>
+                </button>
               </div>
-            )}
+            </div>
           </div>
         </div>
 
@@ -298,7 +300,7 @@ export default function RoomsPage() {
                   {/* 加入按鈕 */}
                   <button
                     onClick={() => handleJoinRoom(room.room_id)}
-                    disabled={!playerName.trim() || (playerRole === 'spymaster' && !playerTeam)}
+                    disabled={!playerName.trim() || !playerTeam}
                     className="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 disabled:from-gray-600 disabled:to-gray-600 disabled:cursor-not-allowed text-white font-semibold py-2.5 px-4 rounded-lg transition-all shadow-lg hover:shadow-xl text-sm sm:text-base"
                   >
                     加入房間
