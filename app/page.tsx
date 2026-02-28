@@ -31,8 +31,23 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-4">
-      <div className="bg-gray-800 rounded-2xl shadow-2xl p-8 w-full max-w-md border border-gray-700">
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
+      {/* 背景图片 */}
+      <div 
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        style={{
+          backgroundImage: 'url(/background.jpg)',
+        }}
+      >
+        {/* 深色覆盖层，确保文字可读性（根据图片亮度调整） */}
+        <div className="absolute inset-0 bg-black/70"></div>
+      </div>
+      
+      {/* 备用渐变背景（如果图片未加载） */}
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900"></div>
+      
+      {/* 内容 */}
+      <div className="relative z-10 bg-gray-900/90 backdrop-blur-xl rounded-2xl shadow-2xl p-8 w-full max-w-md border border-gray-700/50">
         <h1 className="text-4xl font-bold text-center mb-2 bg-gradient-to-r from-red-500 to-blue-500 bg-clip-text text-transparent">
           機密代號
         </h1>
