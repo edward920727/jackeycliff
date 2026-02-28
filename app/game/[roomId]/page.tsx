@@ -332,11 +332,22 @@ export default function GamePage() {
     try {
       setIsUpdating(true)
       const wordBankId = searchParams.get('wordBank') || undefined
-      // 重置遊戲，保留玩家列表
+      // 重置遊戲，保留玩家列表並交換隊伍
       const newCards = await initializeGame(roomId, wordBankId, true)
       setCards(newCards)
       setCurrentTurn('red')
       setGameOverDialog({ show: false, winner: null, loser: null, reason: 'victory' })
+      
+      // 更新當前玩家的隊伍（交換）
+      if (playerTeamRef.current) {
+        playerTeamRef.current = playerTeamRef.current === 'red' ? 'blue' : 'red'
+      }
+      
+      // 重新載入遊戲數據以獲取更新後的玩家列表
+      const updatedGame = await getGame(roomId)
+      if (updatedGame) {
+        setPlayers(updatedGame.players || [])
+      }
     } catch (err: any) {
       console.error('Error resetting game:', err)
       alert('重置遊戲失敗：' + (err.message || '未知錯誤'))

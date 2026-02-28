@@ -48,7 +48,7 @@ export async function getGame(roomId: string): Promise<GameData | null> {
 /**
  * 創建新遊戲
  */
-export async function createGame(roomId: string, wordsData: WordCard[], keepPlayers: boolean = false): Promise<void> {
+export async function createGame(roomId: string, wordsData: WordCard[], keepPlayers: boolean = false, swapTeams: boolean = false): Promise<void> {
   try {
     const gameRef = doc(db, 'games', roomId)
     
@@ -59,6 +59,14 @@ export async function createGame(roomId: string, wordsData: WordCard[], keepPlay
       if (existingGame.exists()) {
         const gameData = existingGame.data() as GameData
         existingPlayers = gameData.players || []
+        
+        // 如果要求交換隊伍，則交換所有玩家的隊伍
+        if (swapTeams) {
+          existingPlayers = existingPlayers.map(player => ({
+            ...player,
+            team: player.team === 'red' ? 'blue' : 'red'
+          }))
+        }
       }
     }
     

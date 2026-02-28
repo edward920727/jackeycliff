@@ -143,8 +143,8 @@ export async function initializeGame(roomId: string, wordBankId?: string, keepPl
     revealed: false,
   }))
   
-  // 存入 Firestore
-  await createGame(roomId, cards, keepPlayers)
+  // 存入 Firestore（如果 keepPlayers 為 true，則交換隊伍）
+  await createGame(roomId, cards, keepPlayers, keepPlayers)
   
   return cards
 }
