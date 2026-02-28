@@ -48,14 +48,25 @@ export async function getGame(roomId: string): Promise<GameData | null> {
 /**
  * 創建新遊戲
  */
-export async function createGame(roomId: string, wordsData: WordCard[]): Promise<void> {
+export async function createGame(roomId: string, wordsData: WordCard[], keepPlayers: boolean = false): Promise<void> {
   try {
     const gameRef = doc(db, 'games', roomId)
+    
+    let existingPlayers: Player[] = []
+    if (keepPlayers) {
+      // 保留現有玩家列表
+      const existingGame = await getDoc(gameRef)
+      if (existingGame.exists()) {
+        const gameData = existingGame.data() as GameData
+        existingPlayers = gameData.players || []
+      }
+    }
+    
     const gameData: GameData = {
       room_id: roomId,
       words_data: wordsData,
       current_turn: 'red',
-      players: [],
+      players: existingPlayers,
       created_at: new Date(),
       updated_at: new Date(),
     }

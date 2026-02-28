@@ -30,6 +30,12 @@ export default function GamePage() {
     cardIndex: number | null
     cardWord: string
   }>({ show: false, cardIndex: null, cardWord: '' })
+  const [gameOverDialog, setGameOverDialog] = useState<{
+    show: boolean
+    winner: 'red' | 'blue' | null
+    loser: 'red' | 'blue' | null
+    reason: 'victory' | 'assassin' // victory: 翻完所有卡片, assassin: 點到刺客
+  }>({ show: false, winner: null, loser: null, reason: 'victory' })
 
   // 初始化或載入遊戲數據
   useEffect(() => {
@@ -242,19 +248,44 @@ export default function GamePage() {
       const newCards = [...latestGame.words_data]
       newCards[index].revealed = true
 
-      // 判斷是否換回合
+      // 判斷是否換回合和遊戲結束
       const clickedColor = newCards[index].color
       let newTurn = currentTurn
+      let gameOver = false
+      let winner: 'red' | 'blue' | null = null
+      let loser: 'red' | 'blue' | null = null
+      let reason: 'victory' | 'assassin' = 'victory'
       
       if (clickedColor === 'black') {
-        // 點到黑色，遊戲結束（這裡簡化處理，可以擴展）
-        alert('遊戲結束！點到了黑色卡片！')
+        // 點到黑色刺客，當前隊伍立即輸掉
+        gameOver = true
+        loser = currentTurn
+        winner = currentTurn === 'red' ? 'blue' : 'red'
+        reason = 'assassin'
       } else if (clickedColor === 'beige') {
         // 點到米色，換回合
         newTurn = currentTurn === 'red' ? 'blue' : 'red'
       } else if (clickedColor !== currentTurn) {
         // 點到對方顏色，換回合
         newTurn = currentTurn === 'red' ? 'blue' : 'red'
+      }
+
+      // 檢查勝利條件：翻完所有己方顏色卡片
+      if (!gameOver) {
+        const redRemaining = newCards.filter(card => card.color === 'red' && !card.revealed).length
+        const blueRemaining = newCards.filter(card => card.color === 'blue' && !card.revealed).length
+        
+        if (redRemaining === 0) {
+          gameOver = true
+          winner = 'red'
+          loser = 'blue'
+          reason = 'victory'
+        } else if (blueRemaining === 0) {
+          gameOver = true
+          winner = 'blue'
+          loser = 'red'
+          reason = 'victory'
+        }
       }
 
       // 驗證數據完整性
@@ -267,11 +298,21 @@ export default function GamePage() {
       await updateGame(
         roomId, 
         newCards, 
-        newTurn,
+        gameOver ? currentTurn : newTurn, // 如果遊戲結束，保持當前回合
         playerIdRef.current, // 玩家ID
         playerRole, // 玩家角色
         currentPlayerTeam || undefined // 玩家隊伍
       )
+
+      // 如果遊戲結束，顯示結束對話框
+      if (gameOver) {
+        setGameOverDialog({
+          show: true,
+          winner,
+          loser,
+          reason
+        })
+      }
     } catch (err: any) {
       setError(err.message || '更新失敗')
       console.error('Error updating card:', err)
@@ -284,6 +325,24 @@ export default function GamePage() {
   // 取消翻開卡片
   const cancelRevealCard = () => {
     setConfirmDialog({ show: false, cardIndex: null, cardWord: '' })
+  }
+
+  // 重新一局
+  const handleNewGame = async () => {
+    try {
+      setIsUpdating(true)
+      const wordBankId = searchParams.get('wordBank') || undefined
+      // 重置遊戲，保留玩家列表
+      const newCards = await initializeGame(roomId, wordBankId, true)
+      setCards(newCards)
+      setCurrentTurn('red')
+      setGameOverDialog({ show: false, winner: null, loser: null, reason: 'victory' })
+    } catch (err: any) {
+      console.error('Error resetting game:', err)
+      alert('重置遊戲失敗：' + (err.message || '未知錯誤'))
+    } finally {
+      setIsUpdating(false)
+    }
   }
 
   // 獲取卡片樣式
@@ -565,6 +624,50 @@ export default function GamePage() {
                 確定翻開
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 遊戲結束對話框 */}
+      {gameOverDialog.show && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl border-2 border-gray-700 p-6 sm:p-8 max-w-md w-full shadow-2xl">
+            <div className="text-center mb-6">
+              {gameOverDialog.reason === 'assassin' ? (
+                <>
+                  <div className="text-6xl mb-4">💀</div>
+                  <h2 className="text-2xl sm:text-3xl font-bold text-red-500 mb-2">
+                    遊戲結束！
+                  </h2>
+                  <p className="text-lg sm:text-xl text-white mb-2">
+                    <span className={gameOverDialog.loser === 'red' ? 'text-red-400' : 'text-blue-400'}>
+                      {gameOverDialog.loser === 'red' ? '🔴 紅隊' : '🔵 藍隊'}
+                    </span>
+                    <span className="text-gray-300"> 點到了黑色刺客卡片</span>
+                  </p>
+                  <p className="text-xl sm:text-2xl font-bold text-green-400 mt-4">
+                    🏆 {gameOverDialog.winner === 'red' ? '🔴 紅隊' : '🔵 藍隊'} 獲勝！
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div className="text-6xl mb-4">🎉</div>
+                  <h2 className="text-2xl sm:text-3xl font-bold text-green-400 mb-2">
+                    🏆 {gameOverDialog.winner === 'red' ? '🔴 紅隊' : '🔵 藍隊'} 獲勝！
+                  </h2>
+                  <p className="text-base sm:text-lg text-gray-300">
+                    率先翻完所有己方顏色卡片
+                  </p>
+                </>
+              )}
+            </div>
+            <button
+              onClick={handleNewGame}
+              disabled={isUpdating}
+              className="w-full px-4 py-3 sm:py-4 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 disabled:from-gray-600 disabled:to-gray-600 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-all shadow-lg hover:shadow-xl text-base sm:text-lg"
+            >
+              {isUpdating ? '重置中...' : '🔄 重新一局'}
+            </button>
           </div>
         </div>
       )}

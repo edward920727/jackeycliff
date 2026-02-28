@@ -36,9 +36,10 @@ function generateColorDistribution(): CardColor[] {
  * 初始化遊戲數據並存入 Firestore
  * @param roomId 房間 ID
  * @param wordBankId 可選的題庫 ID，如果不提供則使用預設詞彙
+ * @param keepPlayers 是否保留現有玩家列表（用於重置遊戲）
  * @returns 生成的卡片陣列
  */
-export async function initializeGame(roomId: string, wordBankId?: string): Promise<WordCard[]> {
+export async function initializeGame(roomId: string, wordBankId?: string, keepPlayers: boolean = false): Promise<WordCard[]> {
   // 生成隨機顏色分配
   const colors = generateColorDistribution()
   
@@ -73,7 +74,7 @@ export async function initializeGame(roomId: string, wordBankId?: string): Promi
   }))
   
   // 存入 Firestore
-  await createGame(roomId, cards)
+  await createGame(roomId, cards, keepPlayers)
   
   return cards
 }
