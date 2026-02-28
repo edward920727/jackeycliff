@@ -1,5 +1,6 @@
 import { WordCard, CardColor } from '@/types/game'
 import { createGame } from './firestore'
+import { getWordBank, randomSelectWords } from './wordBank'
 
 // 預設的 25 個詞彙（可以擴展）
 export const DEFAULT_WORDS = [
@@ -34,14 +35,35 @@ function generateColorDistribution(): CardColor[] {
 /**
  * 初始化遊戲數據並存入 Firestore
  * @param roomId 房間 ID
+ * @param wordBankId 可選的題庫 ID，如果不提供則使用預設詞彙
  * @returns 生成的卡片陣列
  */
-export async function initializeGame(roomId: string): Promise<WordCard[]> {
+export async function initializeGame(roomId: string, wordBankId?: string): Promise<WordCard[]> {
   // 生成隨機顏色分配
   const colors = generateColorDistribution()
   
+  // 獲取詞彙列表
+  let words: string[] = DEFAULT_WORDS
+  if (wordBankId) {
+    try {
+      const wordBank = await getWordBank(wordBankId)
+      if (wordBank && wordBank.words.length >= 25) {
+        words = randomSelectWords(wordBank.words, 25)
+      } else if (wordBank && wordBank.words.length > 0) {
+        // 如果題庫詞彙不足 25 個，重複使用
+        const selected = randomSelectWords(wordBank.words, Math.min(25, wordBank.words.length))
+        while (selected.length < 25) {
+          selected.push(...randomSelectWords(wordBank.words, Math.min(25 - selected.length, wordBank.words.length)))
+        }
+        words = selected.slice(0, 25)
+      }
+    } catch (error) {
+      console.error('Error loading word bank, using default words:', error)
+    }
+  }
+  
   // 隨機打亂詞彙
-  const shuffledWords = [...DEFAULT_WORDS].sort(() => Math.random() - 0.5)
+  const shuffledWords = [...words].sort(() => Math.random() - 0.5)
   
   // 創建 25 張卡片
   const cards: WordCard[] = shuffledWords.slice(0, 25).map((word, index) => ({

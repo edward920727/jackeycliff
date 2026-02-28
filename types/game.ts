@@ -24,3 +24,12 @@ export interface GameData {
 }
 
 export type PlayerRole = 'spymaster' | 'operative'
+
+export interface WordBank {
+  id: string
+  name: string
+  words: string[]
+  created_at?: any
+  updated_at?: any
+  is_default?: boolean
+}

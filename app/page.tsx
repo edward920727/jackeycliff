@@ -1,21 +1,56 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { getAllWordBanks } from '@/lib/wordBank'
+import { WordBank } from '@/types/game'
 
 export default function Home() {
   const [roomId, setRoomId] = useState('')
   const [playerName, setPlayerName] = useState('')
   const [playerRole, setPlayerRole] = useState<'spymaster' | 'operative'>('operative')
+  const [playerTeam, setPlayerTeam] = useState<'red' | 'blue' | ''>('')
+  const [wordBanks, setWordBanks] = useState<WordBank[]>([])
+  const [selectedWordBank, setSelectedWordBank] = useState<string>('')
+  const [loadingBanks, setLoadingBanks] = useState(true)
   const router = useRouter()
+
+  useEffect(() => {
+    loadWordBanks()
+  }, [])
+
+  const loadWordBanks = async () => {
+    try {
+      const banks = await getAllWordBanks()
+      setWordBanks(banks)
+    } catch (error) {
+      console.error('Error loading word banks:', error)
+    } finally {
+      setLoadingBanks(false)
+    }
+  }
 
   const handleCreateRoom = () => {
     if (!playerName.trim()) {
       alert('請輸入您的名字')
       return
     }
+    if (playerRole === 'spymaster' && !playerTeam) {
+      alert('隊長請選擇隊伍（紅隊或藍隊）')
+      return
+    }
     const newRoomId = Math.random().toString(36).substring(2, 8).toUpperCase()
-    router.push(`/game/${newRoomId}?role=${playerRole}&name=${encodeURIComponent(playerName.trim())}`)
+    const params = new URLSearchParams({
+      role: playerRole,
+      name: playerName.trim(),
+    })
+    if (playerTeam) {
+      params.append('team', playerTeam)
+    }
+    if (selectedWordBank) {
+      params.append('wordBank', selectedWordBank)
+    }
+    router.push(`/game/${newRoomId}?${params.toString()}`)
   }
 
   const handleJoinRoom = () => {
@@ -27,7 +62,18 @@ export default function Home() {
       alert('請輸入您的名字')
       return
     }
-    router.push(`/game/${roomId.toUpperCase()}?role=${playerRole}&name=${encodeURIComponent(playerName.trim())}`)
+    if (playerRole === 'spymaster' && !playerTeam) {
+      alert('隊長請選擇隊伍（紅隊或藍隊）')
+      return
+    }
+    const params = new URLSearchParams({
+      role: playerRole,
+      name: playerName.trim(),
+    })
+    if (playerTeam) {
+      params.append('team', playerTeam)
+    }
+    router.push(`/game/${roomId.toUpperCase()}?${params.toString()}`)
   }
 
   return (
@@ -74,11 +120,40 @@ export default function Home() {
 
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
+              選擇題庫（可選）
+            </label>
+            <div className="flex gap-2 mb-4">
+              <select
+                value={selectedWordBank}
+                onChange={(e) => setSelectedWordBank(e.target.value)}
+                className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">使用預設題庫</option>
+                {wordBanks.map((bank) => (
+                  <option key={bank.id} value={bank.id}>
+                    {bank.name} ({bank.words.length} 個詞彙)
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={() => router.push('/word-bank')}
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg transition-colors text-sm font-semibold whitespace-nowrap"
+              >
+                管理題庫
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
               選擇角色
             </label>
             <div className="grid grid-cols-2 gap-3">
               <button
-                onClick={() => setPlayerRole('spymaster')}
+                onClick={() => {
+                  setPlayerRole('spymaster')
+                  setPlayerTeam('') // 重置隊伍選擇
+                }}
                 className={`p-3 rounded-lg border-2 transition-all ${
                   playerRole === 'spymaster'
                     ? 'border-blue-500 bg-blue-500/20 text-blue-300'
@@ -89,7 +164,10 @@ export default function Home() {
                 <div className="text-xs mt-1">可看到所有顏色</div>
               </button>
               <button
-                onClick={() => setPlayerRole('operative')}
+                onClick={() => {
+                  setPlayerRole('operative')
+                  setPlayerTeam('') // 隊員不需要選擇隊伍
+                }}
                 className={`p-3 rounded-lg border-2 transition-all ${
                   playerRole === 'operative'
                     ? 'border-green-500 bg-green-500/20 text-green-300'
@@ -101,6 +179,39 @@ export default function Home() {
               </button>
             </div>
           </div>
+
+          {/* 隊長選擇隊伍 */}
+          {playerRole === 'spymaster' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                選擇隊伍（隊長必選）
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setPlayerTeam('red')}
+                  className={`p-3 rounded-lg border-2 transition-all ${
+                    playerTeam === 'red'
+                      ? 'border-red-500 bg-red-500/20 text-red-300'
+                      : 'border-gray-600 bg-gray-700/50 text-gray-400 hover:border-gray-500'
+                  }`}
+                >
+                  <div className="font-semibold">🔴 紅隊</div>
+                  <div className="text-xs mt-1">紅隊隊長</div>
+                </button>
+                <button
+                  onClick={() => setPlayerTeam('blue')}
+                  className={`p-3 rounded-lg border-2 transition-all ${
+                    playerTeam === 'blue'
+                      ? 'border-blue-500 bg-blue-500/20 text-blue-300'
+                      : 'border-gray-600 bg-gray-700/50 text-gray-400 hover:border-gray-500'
+                  }`}
+                >
+                  <div className="font-semibold">🔵 藍隊</div>
+                  <div className="text-xs mt-1">藍隊隊長</div>
+                </button>
+              </div>
+            </div>
+          )}
 
           <div>
             <button

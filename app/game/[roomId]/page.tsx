@@ -17,9 +17,10 @@ export default function GamePage() {
   const [players, setPlayers] = useState<Player[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  // 角色和名字在進入房間時確定，之後不能更改
+  // 角色、名字和隊伍在進入房間時確定，之後不能更改
   const playerRole = (searchParams.get('role') || 'operative') as PlayerRole
   const playerName = searchParams.get('name') || '匿名玩家'
+  const selectedTeam = searchParams.get('team') as 'red' | 'blue' | null
   const playerIdRef = useRef<string>(`player_${Date.now()}_${Math.random().toString(36).substring(7)}`)
   const hasJoinedRef = useRef(false)
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -42,7 +43,8 @@ export default function GamePage() {
           setPlayers(existingGame.players || [])
         } else {
           // 創建新遊戲（initializeGame 會自動存入 Firestore）
-          const initialCards = await initializeGame(roomId)
+          const wordBankId = searchParams.get('wordBank') || undefined
+          const initialCards = await initializeGame(roomId, wordBankId)
           setCards(initialCards)
           setCurrentTurn('red')
           setPlayers([])
@@ -64,14 +66,22 @@ export default function GamePage() {
       if (loading || hasJoinedRef.current) return
       
       try {
-        // 自動分配隊伍（根據現有玩家數量）
         const existingGame = await getGame(roomId)
         const existingPlayers = existingGame?.players || []
-        const redCount = existingPlayers.filter(p => p.team === 'red').length
-        const blueCount = existingPlayers.filter(p => p.team === 'blue').length
         
-        // 分配隊伍：較少人的隊伍優先
-        const assignedTeam = redCount <= blueCount ? 'red' : 'blue'
+        // 決定隊伍
+        let assignedTeam: 'red' | 'blue'
+        
+        if (selectedTeam) {
+          // 如果已經選擇了隊伍（隊長），使用選擇的隊伍
+          assignedTeam = selectedTeam
+        } else {
+          // 隊員自動分配隊伍（根據現有玩家數量）
+          const redCount = existingPlayers.filter(p => p.team === 'red').length
+          const blueCount = existingPlayers.filter(p => p.team === 'blue').length
+          // 分配隊伍：較少人的隊伍優先
+          assignedTeam = redCount <= blueCount ? 'red' : 'blue'
+        }
         
         const newPlayer: Player = {
           id: playerIdRef.current,
@@ -91,7 +101,7 @@ export default function GamePage() {
     if (!loading) {
       addPlayer()
     }
-  }, [roomId, loading, playerName, playerRole])
+  }, [roomId, loading, playerName, playerRole, selectedTeam])
 
   // 離開遊戲時清理
   useEffect(() => {
