@@ -331,8 +331,13 @@ export default function GamePage() {
   const handleNewGame = async () => {
     try {
       setIsUpdating(true)
-      const wordBankId = searchParams.get('wordBank') || undefined
+      
+      // 從房間數據中獲取題庫ID（優先使用房間記錄的題庫）
+      const currentGame = await getGame(roomId)
+      const wordBankId = currentGame?.word_bank_id || searchParams.get('wordBank') || undefined
+      
       // 重置遊戲，保留玩家列表並交換隊伍
+      // initializeGame 會自動從房間數據中讀取題庫ID和已使用詞彙
       const newCards = await initializeGame(roomId, wordBankId, true)
       setCards(newCards)
       setCurrentTurn('red')

@@ -123,15 +123,23 @@ export async function initializeGame(roomId: string, wordBankId?: string, keepPl
   // 獲取詞彙列表（使用房間記錄的題庫ID）
   let allWords: string[] = DEFAULT_WORDS
   const wordBankIdToUse = existingWordBankId || wordBankId
+  
+  console.log('initializeGame - wordBankId:', wordBankId, 'existingWordBankId:', existingWordBankId, 'wordBankIdToUse:', wordBankIdToUse)
+  
   if (wordBankIdToUse) {
     try {
       const wordBank = await getWordBank(wordBankIdToUse)
       if (wordBank && wordBank.words.length > 0) {
         allWords = wordBank.words
+        console.log('成功載入題庫:', wordBank.name, '詞彙數量:', wordBank.words.length)
+      } else {
+        console.warn('題庫不存在或為空:', wordBankIdToUse)
       }
     } catch (error) {
       console.error('Error loading word bank, using default words:', error)
     }
+  } else {
+    console.log('未指定題庫，使用預設詞彙')
   }
   
   // 選擇詞彙（從題庫中選擇沒有在這個房間使用過的詞彙）
@@ -201,7 +209,14 @@ export async function initializeGame(roomId: string, wordBankId?: string, keepPl
   }))
   
   // 存入 Firestore（傳遞已使用詞彙列表和題庫ID）
-  await createGame(roomId, cards, keepPlayers, keepPlayers, newUsedWords, wordBankIdToUse)
+  // 如果是首次創建遊戲，確保保存題庫ID
+  const finalWordBankId = keepPlayers ? wordBankIdToUse : (wordBankId || wordBankIdToUse)
+  await createGame(roomId, cards, keepPlayers, keepPlayers, newUsedWords, finalWordBankId)
+  
+  // 調試日誌
+  if (finalWordBankId) {
+    console.log('保存題庫ID:', finalWordBankId, '詞彙數量:', allWords.length)
+  }
   
   return cards
 }

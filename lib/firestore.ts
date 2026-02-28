@@ -63,7 +63,7 @@ export async function createGame(
     
     let existingPlayers: Player[] = []
     let existingUsedWords: string[] = []
-    let existingWordBankId: string | undefined = wordBankId
+    let existingWordBankId: string | undefined = undefined
     
     if (keepPlayers) {
       // 保留現有玩家列表
@@ -72,6 +72,7 @@ export async function createGame(
         const gameData = existingGame.data() as GameData
         existingPlayers = gameData.players || []
         existingUsedWords = gameData.used_words || []
+        // 優先使用房間記錄的題庫ID
         existingWordBankId = gameData.word_bank_id || wordBankId
         
         // 如果要求交換隊伍，則交換所有玩家的隊伍
@@ -84,17 +85,24 @@ export async function createGame(
       }
     }
     
+    // 確定最終使用的題庫ID（優先使用傳入的，否則使用現有的）
+    const finalWordBankId = wordBankId !== undefined ? wordBankId : existingWordBankId
+    
+    console.log('createGame - wordBankId:', wordBankId, 'existingWordBankId:', existingWordBankId, 'finalWordBankId:', finalWordBankId, 'keepPlayers:', keepPlayers)
+    
     const gameData: GameData = {
       room_id: roomId,
       words_data: wordsData,
       current_turn: 'red',
       players: existingPlayers,
       used_words: usedWords !== undefined ? usedWords : existingUsedWords, // 使用傳入的已使用詞彙列表，或保留現有的
-      word_bank_id: wordBankId || existingWordBankId, // 記錄題庫ID（優先使用傳入的）
+      word_bank_id: finalWordBankId, // 記錄題庫ID
       created_at: new Date(),
       updated_at: new Date(),
     }
     await setDoc(gameRef, gameData)
+    
+    console.log('遊戲數據已保存 - word_bank_id:', gameData.word_bank_id, 'used_words數量:', (gameData.used_words || []).length)
   } catch (error) {
     console.error('Error creating game:', error)
     throw error
