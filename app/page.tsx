@@ -97,15 +97,15 @@ export default function Home() {
       </div>
       
       {/* 内容 */}
-      <div className="relative z-10 bg-gray-900/90 backdrop-blur-xl rounded-2xl shadow-2xl p-8 w-full max-w-md border border-gray-700/50">
-        <h1 className="text-4xl font-bold text-center mb-2 bg-gradient-to-r from-red-500 to-blue-500 bg-clip-text text-transparent">
+      <div className="relative z-10 bg-gray-900/90 backdrop-blur-xl rounded-2xl shadow-2xl p-4 sm:p-6 md:p-8 w-full max-w-md border border-gray-700/50">
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-center mb-2 bg-gradient-to-r from-red-500 to-blue-500 bg-clip-text text-transparent">
           機密代號
         </h1>
-        <p className="text-center text-gray-400 mb-8">Codenames Online</p>
+        <p className="text-center text-gray-400 mb-4 sm:mb-6 md:mb-8 text-sm sm:text-base">Codenames Online</p>
 
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-5 md:space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-2">
               輸入您的名字
             </label>
             <input
@@ -113,20 +113,20 @@ export default function Home() {
               value={playerName}
               onChange={(e) => setPlayerName(e.target.value)}
               placeholder="例如: 小明"
-              className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               maxLength={20}
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-2">
               選擇題庫（可選）
             </label>
-            <div className="flex gap-2 mb-4">
+            <div className="flex flex-col sm:flex-row gap-2 mb-4">
               <select
                 value={selectedWordBank}
                 onChange={(e) => setSelectedWordBank(e.target.value)}
-                className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-3 sm:px-4 py-2 text-xs sm:text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">使用預設題庫</option>
                 {wordBanks.map((bank) => (
@@ -137,7 +137,7 @@ export default function Home() {
               </select>
               <button
                 onClick={() => router.push('/word-bank')}
-                className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg transition-colors text-sm font-semibold whitespace-nowrap"
+                className="px-3 sm:px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg transition-colors text-xs sm:text-sm font-semibold whitespace-nowrap"
               >
                 管理題庫
               </button>
@@ -145,37 +145,37 @@ export default function Home() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-2">
               選擇角色
             </label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2 sm:gap-3">
               <button
                 onClick={() => {
                   setPlayerRole('spymaster')
                   setPlayerTeam('') // 重置隊伍選擇
                 }}
-                className={`p-3 rounded-lg border-2 transition-all ${
+                className={`p-2 sm:p-3 rounded-lg border-2 transition-all ${
                   playerRole === 'spymaster'
                     ? 'border-blue-500 bg-blue-500/20 text-blue-300'
                     : 'border-gray-600 bg-gray-700/50 text-gray-400 hover:border-gray-500'
                 }`}
               >
-                <div className="font-semibold">隊長</div>
-                <div className="text-xs mt-1">可看到所有顏色</div>
+                <div className="font-semibold text-xs sm:text-sm">隊長</div>
+                <div className="text-[10px] sm:text-xs mt-1">可看到所有顏色</div>
               </button>
               <button
                 onClick={() => {
                   setPlayerRole('operative')
                   setPlayerTeam('') // 隊員不需要選擇隊伍
                 }}
-                className={`p-3 rounded-lg border-2 transition-all ${
+                className={`p-2 sm:p-3 rounded-lg border-2 transition-all ${
                   playerRole === 'operative'
                     ? 'border-green-500 bg-green-500/20 text-green-300'
                     : 'border-gray-600 bg-gray-700/50 text-gray-400 hover:border-gray-500'
                 }`}
               >
-                <div className="font-semibold">隊員</div>
-                <div className="text-xs mt-1">點擊後翻牌</div>
+                <div className="font-semibold text-xs sm:text-sm">隊員</div>
+                <div className="text-[10px] sm:text-xs mt-1">點擊後翻牌</div>
               </button>
             </div>
           </div>
@@ -183,31 +183,31 @@ export default function Home() {
           {/* 隊長選擇隊伍 */}
           {playerRole === 'spymaster' && (
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-2">
                 選擇隊伍（隊長必選）
               </label>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2 sm:gap-3">
                 <button
                   onClick={() => setPlayerTeam('red')}
-                  className={`p-3 rounded-lg border-2 transition-all ${
+                  className={`p-2 sm:p-3 rounded-lg border-2 transition-all ${
                     playerTeam === 'red'
                       ? 'border-red-500 bg-red-500/20 text-red-300'
                       : 'border-gray-600 bg-gray-700/50 text-gray-400 hover:border-gray-500'
                   }`}
                 >
-                  <div className="font-semibold">🔴 紅隊</div>
-                  <div className="text-xs mt-1">紅隊隊長</div>
+                  <div className="font-semibold text-xs sm:text-sm">🔴 紅隊</div>
+                  <div className="text-[10px] sm:text-xs mt-1">紅隊隊長</div>
                 </button>
                 <button
                   onClick={() => setPlayerTeam('blue')}
-                  className={`p-3 rounded-lg border-2 transition-all ${
+                  className={`p-2 sm:p-3 rounded-lg border-2 transition-all ${
                     playerTeam === 'blue'
                       ? 'border-blue-500 bg-blue-500/20 text-blue-300'
                       : 'border-gray-600 bg-gray-700/50 text-gray-400 hover:border-gray-500'
                   }`}
                 >
-                  <div className="font-semibold">🔵 藍隊</div>
-                  <div className="text-xs mt-1">藍隊隊長</div>
+                  <div className="font-semibold text-xs sm:text-sm">🔵 藍隊</div>
+                  <div className="text-[10px] sm:text-xs mt-1">藍隊隊長</div>
                 </button>
               </div>
             </div>
@@ -216,7 +216,7 @@ export default function Home() {
           <div>
             <button
               onClick={handleCreateRoom}
-              className="w-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-semibold py-3 px-4 rounded-lg transition-all shadow-lg hover:shadow-xl"
+              className="w-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-semibold py-2.5 sm:py-3 px-4 rounded-lg transition-all shadow-lg hover:shadow-xl text-sm sm:text-base"
             >
               建立新房間
             </button>
@@ -232,7 +232,7 @@ export default function Home() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-2">
               輸入房間代碼
             </label>
             <div className="flex gap-2">
@@ -241,13 +241,13 @@ export default function Home() {
                 value={roomId}
                 onChange={(e) => setRoomId(e.target.value.toUpperCase())}
                 placeholder="例如: ABC123"
-                className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 maxLength={6}
               />
               <button
                 onClick={handleJoinRoom}
                 disabled={!roomId.trim()}
-                className="bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 disabled:from-gray-600 disabled:to-gray-600 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-all shadow-lg hover:shadow-xl"
+                className="bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 disabled:from-gray-600 disabled:to-gray-600 disabled:cursor-not-allowed text-white font-semibold py-2.5 sm:py-3 px-4 sm:px-6 rounded-lg transition-all shadow-lg hover:shadow-xl text-sm sm:text-base whitespace-nowrap"
               >
                 加入
               </button>

@@ -109,7 +109,7 @@ export async function leaveGame(
 }
 
 /**
- * 更新遊戲數據
+ * 更新遊戲數據（帶驗證）
  */
 export async function updateGame(
   roomId: string, 
@@ -117,7 +117,32 @@ export async function updateGame(
   currentTurn: 'red' | 'blue'
 ): Promise<void> {
   try {
+    // 驗證數據完整性
+    if (!wordsData || wordsData.length !== 25) {
+      throw new Error('卡片數據不完整，必須有 25 張卡片')
+    }
+
+    // 驗證每張卡片的結構
+    for (const card of wordsData) {
+      if (!card.word || !card.color || typeof card.revealed !== 'boolean') {
+        throw new Error('卡片數據格式錯誤')
+      }
+    }
+
+    // 驗證回合值
+    if (currentTurn !== 'red' && currentTurn !== 'blue') {
+      throw new Error('無效的回合值')
+    }
+
     const gameRef = doc(db, 'games', roomId)
+    
+    // 使用事務更新（如果 Firestore 支持）
+    // 這裡先獲取當前狀態進行驗證
+    const currentGame = await getDoc(gameRef)
+    if (!currentGame.exists()) {
+      throw new Error('遊戲不存在')
+    }
+
     await updateDoc(gameRef, {
       words_data: wordsData,
       current_turn: currentTurn,
