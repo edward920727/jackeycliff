@@ -345,19 +345,90 @@ export default function GamePage() {
     }
   }
 
+  // 結束這回合
+  const handleEndTurn = async () => {
+    // 只有隊員可以結束回合
+    if (playerRole === 'spymaster') {
+      alert('隊長不能結束回合')
+      return
+    }
+
+    // 只有當前回合的隊伍可以結束回合
+    const currentPlayerTeam = playerTeamRef.current
+    if (!currentPlayerTeam || currentPlayerTeam !== currentTurn) {
+      alert(`現在是${currentTurn === 'red' ? '紅' : '藍'}隊的回合，請等待`)
+      return
+    }
+
+    if (isUpdating) {
+      return
+    }
+
+    if (!confirm(`確定要結束${currentTurn === 'red' ? '紅' : '藍'}隊的回合嗎？`)) {
+      return
+    }
+
+    setIsUpdating(true)
+
+    try {
+      // 重新獲取最新遊戲狀態
+      const latestGame = await getGame(roomId)
+      if (!latestGame) {
+        throw new Error('遊戲不存在')
+      }
+
+      // 驗證回合
+      if (latestGame.current_turn !== currentTurn) {
+        alert('回合已改變，請刷新頁面')
+        setIsUpdating(false)
+        return
+      }
+
+      // 切換到對方回合
+      const newTurn = currentTurn === 'red' ? 'blue' : 'red'
+
+      // 更新資料庫（帶玩家身份驗證）
+      await updateGame(
+        roomId,
+        latestGame.words_data,
+        newTurn,
+        playerIdRef.current,
+        playerRole,
+        currentPlayerTeam
+      )
+    } catch (err: any) {
+      console.error('Error ending turn:', err)
+      alert(err.message || '結束回合失敗，請重試')
+    } finally {
+      setIsUpdating(false)
+    }
+  }
+
   // 獲取卡片樣式
   const getCardStyle = (card: WordCard, index: number) => {
     const baseStyle = 'w-full aspect-square rounded-md sm:rounded-lg border-2 transition-all duration-300 flex items-center justify-center text-center p-1 sm:p-2 font-semibold cursor-pointer transform hover:scale-105 active:scale-95'
     
-    // 隊長視角：顯示所有顏色（用透明度）
+    // 隊長視角：顯示所有顏色（用透明度），已翻開的卡片更明顯
     if (playerRole === 'spymaster') {
-      const colorMap: Record<CardColor, string> = {
-        red: 'bg-red-600/30 border-red-500/50 text-red-200',
-        blue: 'bg-blue-600/30 border-blue-500/50 text-blue-200',
-        black: 'bg-gray-800/30 border-gray-600/50 text-gray-300',
-        beige: 'bg-yellow-600/30 border-yellow-500/50 text-yellow-200',
+      if (card.revealed) {
+        // 已翻開的卡片：使用不透明度更高的顏色，並添加特殊標記
+        const revealedColorMap: Record<CardColor, string> = {
+          red: 'bg-red-600/80 border-red-500 text-white ring-2 ring-red-400 ring-offset-1',
+          blue: 'bg-blue-600/80 border-blue-500 text-white ring-2 ring-blue-400 ring-offset-1',
+          black: 'bg-gray-800/80 border-gray-600 text-white ring-2 ring-gray-400 ring-offset-1',
+          beige: 'bg-yellow-600/80 border-yellow-500 text-white ring-2 ring-yellow-400 ring-offset-1',
+        }
+        return `${baseStyle} ${revealedColorMap[card.color]} cursor-not-allowed relative`
+      } else {
+        // 未翻開的卡片：使用透明度較低的顏色
+        const colorMap: Record<CardColor, string> = {
+          red: 'bg-red-600/30 border-red-500/50 text-red-200',
+          blue: 'bg-blue-600/30 border-blue-500/50 text-blue-200',
+          black: 'bg-gray-800/30 border-gray-600/50 text-gray-300',
+          beige: 'bg-yellow-600/30 border-yellow-500/50 text-yellow-200',
+        }
+        return `${baseStyle} ${colorMap[card.color]} cursor-not-allowed`
       }
-      return `${baseStyle} ${colorMap[card.color]} cursor-not-allowed`
     }
     
     // 隊員視角：只有翻開的才顯示顏色
@@ -571,6 +642,9 @@ export default function GamePage() {
               disabled={playerRole === 'spymaster' || card.revealed || isUpdating || (playerTeamRef.current !== null && playerTeamRef.current !== currentTurn)}
             >
               <span className="break-words text-[10px] sm:text-xs md:text-sm lg:text-base leading-tight">{card.word}</span>
+              {playerRole === 'spymaster' && card.revealed && (
+                <span className="absolute top-1 right-1 text-xs sm:text-sm font-bold bg-white/20 rounded-full w-5 h-5 flex items-center justify-center">✓</span>
+              )}
             </button>
           ))}
         </div>
