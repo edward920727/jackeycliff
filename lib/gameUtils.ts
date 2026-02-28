@@ -88,24 +88,44 @@ export async function initializeGame(roomId: string, wordBankId?: string, keepPl
   // 生成隨機顏色分配
   const colors = generateColorDistribution()
   
-  // 獲取上一場使用的詞彙（如果是重置遊戲）
-  let previousWords: string[] = []
+  // 獲取這個房間使用過的所有詞彙（如果是重置遊戲）
+  let usedWordsInRoom: string[] = []
+  let existingWordBankId: string | undefined = wordBankId
   if (keepPlayers) {
     try {
       const previousGame = await getGame(roomId)
-      if (previousGame && previousGame.words_data) {
-        previousWords = previousGame.words_data.map(card => card.word)
+      if (previousGame) {
+        // 獲取這個房間使用過的所有詞彙
+        usedWordsInRoom = previousGame.used_words || []
+        
+        // 如果當前沒有指定題庫，使用房間記錄的題庫
+        if (!wordBankId && previousGame.word_bank_id) {
+          existingWordBankId = previousGame.word_bank_id
+        } else if (wordBankId) {
+          existingWordBankId = wordBankId
+        }
+        
+        // 將上一場的詞彙也加入已使用列表（如果還沒有記錄）
+        if (previousGame.words_data) {
+          const lastGameWords = previousGame.words_data.map(card => card.word)
+          lastGameWords.forEach(word => {
+            if (!usedWordsInRoom.includes(word)) {
+              usedWordsInRoom.push(word)
+            }
+          })
+        }
       }
     } catch (error) {
       console.error('Error getting previous game words:', error)
     }
   }
   
-  // 獲取詞彙列表
+  // 獲取詞彙列表（使用房間記錄的題庫ID）
   let allWords: string[] = DEFAULT_WORDS
-  if (wordBankId) {
+  const wordBankIdToUse = existingWordBankId || wordBankId
+  if (wordBankIdToUse) {
     try {
-      const wordBank = await getWordBank(wordBankId)
+      const wordBank = await getWordBank(wordBankIdToUse)
       if (wordBank && wordBank.words.length > 0) {
         allWords = wordBank.words
       }
@@ -114,24 +134,61 @@ export async function initializeGame(roomId: string, wordBankId?: string, keepPl
     }
   }
   
-  // 選擇詞彙（盡量避免與上一場重複）
+  // 選擇詞彙（從題庫中選擇沒有在這個房間使用過的詞彙）
   let words: string[] = []
   if (allWords.length >= 25) {
-    words = selectWordsAvoidingPrevious(allWords, 25, previousWords)
+    // 過濾掉這個房間使用過的所有詞彙
+    const availableWords = allWords.filter(word => !usedWordsInRoom.includes(word))
+    
+    if (availableWords.length >= 25) {
+      // 如果可用詞彙足夠，直接從中選擇
+      words = randomSelectWords(availableWords, 25)
+    } else if (availableWords.length > 0) {
+      // 如果可用詞彙不足但還有一些，先選擇所有可用的，然後從全部詞彙中補充
+      words = [...availableWords]
+      const remaining = 25 - words.length
+      const additionalWords = allWords.filter(word => !words.includes(word))
+      if (additionalWords.length >= remaining) {
+        words.push(...randomSelectWords(additionalWords, remaining))
+      } else {
+        words.push(...randomSelectWords(allWords, remaining))
+      }
+      words = words.slice(0, 25)
+    } else {
+      // 如果所有詞彙都用過了，重置已使用列表並重新選擇
+      usedWordsInRoom = []
+      words = randomSelectWords(allWords, 25)
+    }
   } else if (allWords.length > 0) {
-    // 如果題庫詞彙不足 25 個，需要重複使用，但盡量減少與上一場的重複
-    const selected = selectWordsAvoidingPrevious(allWords, Math.min(25, allWords.length), previousWords)
+    // 如果題庫詞彙不足 25 個，需要重複使用
+    const availableWords = allWords.filter(word => !usedWordsInRoom.includes(word))
+    const selected: string[] = []
+    
+    // 先選擇所有未使用的詞彙
+    if (availableWords.length > 0) {
+      selected.push(...randomSelectWords(availableWords, Math.min(25, availableWords.length)))
+    }
+    
+    // 如果還需要更多詞彙，從全部詞彙中選擇
     while (selected.length < 25) {
       const remaining = 25 - selected.length
-      const additional = selectWordsAvoidingPrevious(
-        allWords, 
-        Math.min(remaining, allWords.length),
-        previousWords.length > 0 ? previousWords : selected // 避免與上一場和當前已選的重複
-      )
-      selected.push(...additional)
+      const remainingWords = allWords.filter(word => !selected.includes(word))
+      if (remainingWords.length >= remaining) {
+        selected.push(...randomSelectWords(remainingWords, remaining))
+      } else {
+        selected.push(...randomSelectWords(allWords, remaining))
+      }
     }
     words = selected.slice(0, 25)
   }
+  
+  // 更新已使用詞彙列表
+  const newUsedWords = [...usedWordsInRoom]
+  words.forEach(word => {
+    if (!newUsedWords.includes(word)) {
+      newUsedWords.push(word)
+    }
+  })
   
   // 隨機打亂詞彙
   const shuffledWords = [...words].sort(() => Math.random() - 0.5)
@@ -143,8 +200,8 @@ export async function initializeGame(roomId: string, wordBankId?: string, keepPl
     revealed: false,
   }))
   
-  // 存入 Firestore（如果 keepPlayers 為 true，則交換隊伍）
-  await createGame(roomId, cards, keepPlayers, keepPlayers)
+  // 存入 Firestore（傳遞已使用詞彙列表和題庫ID）
+  await createGame(roomId, cards, keepPlayers, keepPlayers, newUsedWords, wordBankIdToUse)
   
   return cards
 }

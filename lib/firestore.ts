@@ -23,6 +23,8 @@ export interface GameData {
   words_data: WordCard[]
   current_turn: 'red' | 'blue'
   players: Player[]
+  used_words?: string[] // 記錄這個房間使用過的所有詞彙
+  word_bank_id?: string // 記錄使用的題庫ID
   created_at?: any
   updated_at?: any
 }
@@ -48,17 +50,29 @@ export async function getGame(roomId: string): Promise<GameData | null> {
 /**
  * 創建新遊戲
  */
-export async function createGame(roomId: string, wordsData: WordCard[], keepPlayers: boolean = false, swapTeams: boolean = false): Promise<void> {
+export async function createGame(
+  roomId: string, 
+  wordsData: WordCard[], 
+  keepPlayers: boolean = false, 
+  swapTeams: boolean = false,
+  usedWords?: string[],
+  wordBankId?: string
+): Promise<void> {
   try {
     const gameRef = doc(db, 'games', roomId)
     
     let existingPlayers: Player[] = []
+    let existingUsedWords: string[] = []
+    let existingWordBankId: string | undefined = wordBankId
+    
     if (keepPlayers) {
       // 保留現有玩家列表
       const existingGame = await getDoc(gameRef)
       if (existingGame.exists()) {
         const gameData = existingGame.data() as GameData
         existingPlayers = gameData.players || []
+        existingUsedWords = gameData.used_words || []
+        existingWordBankId = gameData.word_bank_id || wordBankId
         
         // 如果要求交換隊伍，則交換所有玩家的隊伍
         if (swapTeams) {
@@ -75,6 +89,8 @@ export async function createGame(roomId: string, wordsData: WordCard[], keepPlay
       words_data: wordsData,
       current_turn: 'red',
       players: existingPlayers,
+      used_words: usedWords !== undefined ? usedWords : existingUsedWords, // 使用傳入的已使用詞彙列表，或保留現有的
+      word_bank_id: wordBankId || existingWordBankId, // 記錄題庫ID（優先使用傳入的）
       created_at: new Date(),
       updated_at: new Date(),
     }
