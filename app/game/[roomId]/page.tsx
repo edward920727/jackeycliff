@@ -487,8 +487,23 @@ export default function GamePage() {
   const { redRemaining, blueRemaining } = getRemainingCards()
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-4">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
+      {/* 全屏背景图片 - 机密行动主题（Unsplash 无版权图片） */}
+      <div className="absolute inset-0 w-full h-full overflow-hidden">
+        <div 
+          className="h-full w-full animate-background"
+          style={{
+            backgroundImage: 'url(https://images.unsplash.com/photo-1519681393784-d120267933ba?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80)',
+            backgroundSize: '120%',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+          }}
+        />
+        {/* 背景图片的覆盖层，确保内容可读性 */}
+        <div className="absolute inset-0 bg-black/40"></div>
+      </div>
+      
+      <div className="relative z-10 max-w-4xl mx-auto w-full">
         {/* 「目前輪到誰」指示燈 */}
         <div className={`mb-3 sm:mb-4 rounded-lg p-3 sm:p-4 border-2 transition-all duration-300 ${
           currentTurn === 'red'

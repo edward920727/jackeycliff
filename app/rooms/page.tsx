@@ -12,6 +12,7 @@ export default function RoomsPage() {
   const [playerRole, setPlayerRole] = useState<'spymaster' | 'operative'>('operative')
   const [playerTeam, setPlayerTeam] = useState<'red' | 'blue' | ''>('')
   const [selectedRoomId, setSelectedRoomId] = useState<string>('')
+  const [roomId, setRoomId] = useState('')
   const [isDeleting, setIsDeleting] = useState(false)
 
   useEffect(() => {
@@ -51,6 +52,31 @@ export default function RoomsPage() {
       team: playerTeam, // 隊伍是必選的
     })
     router.push(`/game/${roomId}?${params.toString()}`)
+  }
+
+  const handleJoinRoomByCode = () => {
+    if (!roomId.trim()) {
+      alert('請輸入房間代碼')
+      return
+    }
+    if (!playerName.trim()) {
+      alert('請先輸入您的名字')
+      return
+    }
+    if (!playerTeam) {
+      alert('請選擇隊伍（紅隊或藍隊）')
+      return
+    }
+
+    // 保存玩家名稱到 localStorage
+    localStorage.setItem('playerName', playerName.trim())
+
+    const params = new URLSearchParams({
+      role: playerRole,
+      name: playerName.trim(),
+      team: playerTeam, // 隊伍是必選的
+    })
+    router.push(`/game/${roomId.toUpperCase()}?${params.toString()}`)
   }
 
   const handleDeleteAllRooms = async () => {
@@ -102,8 +128,23 @@ export default function RoomsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-4 sm:p-6">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen p-4 sm:p-6 relative overflow-hidden">
+      {/* 全屏背景图片 - 机密行动主题（Unsplash 无版权图片） */}
+      <div className="absolute inset-0 w-full h-full overflow-hidden">
+        <div 
+          className="h-full w-full animate-background"
+          style={{
+            backgroundImage: 'url(https://images.unsplash.com/photo-1519681393784-d120267933ba?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80)',
+            backgroundSize: '120%',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+          }}
+        />
+        {/* 背景图片的覆盖层，确保内容可读性 */}
+        <div className="absolute inset-0 bg-black/40"></div>
+      </div>
+      
+      <div className="relative z-10 max-w-6xl mx-auto">
         {/* 返回按鈕 */}
         <button
           onClick={() => router.push('/')}
@@ -129,6 +170,28 @@ export default function RoomsPage() {
               {isDeleting ? '刪除中...' : '🗑️ 刪除所有房間'}
             </button>
           )}
+        </div>
+
+        {/* 輸入房間代碼 */}
+        <div className="bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-2xl p-4 sm:p-6 mb-6 border border-gray-700/50">
+          <h2 className="text-lg sm:text-xl font-semibold text-white mb-4">輸入房間代碼</h2>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={roomId}
+              onChange={(e) => setRoomId(e.target.value.toUpperCase())}
+              placeholder="例如: ABC123"
+              className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-3 sm:px-4 py-2 text-sm sm:text-base text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              maxLength={6}
+            />
+            <button
+              onClick={handleJoinRoomByCode}
+              disabled={!roomId.trim() || !playerName.trim() || !playerTeam}
+              className="bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 disabled:from-gray-600 disabled:to-gray-600 disabled:cursor-not-allowed text-white font-semibold px-4 sm:px-6 py-2 rounded-lg transition-all text-sm sm:text-base whitespace-nowrap"
+            >
+              加入房間
+            </button>
+          </div>
         </div>
 
         {/* 玩家信息設置 */}

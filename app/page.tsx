@@ -6,7 +6,6 @@ import { getAllWordBanks } from '@/lib/wordBank'
 import { WordBank } from '@/types/game'
 
 export default function Home() {
-  const [roomId, setRoomId] = useState('')
   const [playerName, setPlayerName] = useState('')
   const [playerRole, setPlayerRole] = useState<'spymaster' | 'operative'>('operative')
   const [playerTeam, setPlayerTeam] = useState<'red' | 'blue' | ''>('')
@@ -51,27 +50,6 @@ export default function Home() {
     router.push(`/game/${newRoomId}?${params.toString()}`)
   }
 
-  const handleJoinRoom = () => {
-    if (!roomId.trim()) {
-      alert('請輸入房間代碼')
-      return
-    }
-    if (!playerName.trim()) {
-      alert('請輸入您的名字')
-      return
-    }
-    if (!playerTeam) {
-      alert('請選擇隊伍（紅隊或藍隊）')
-      return
-    }
-    const params = new URLSearchParams({
-      role: playerRole,
-      name: playerName.trim(),
-      team: playerTeam, // 隊伍是必選的
-    })
-    router.push(`/game/${roomId.toUpperCase()}?${params.toString()}`)
-  }
-
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
       {/* 全屏背景图片 - 机密行动主题（Unsplash 无版权图片） */}
@@ -97,38 +75,14 @@ export default function Home() {
         📖 遊戲規則
       </button>
 
-      {/* 右上角區域 - 房間列表和輸入房間代碼 */}
-      <div className="absolute top-4 right-4 z-20 flex flex-col gap-2 items-end">
+      {/* 右上角區域 - 房間列表 */}
+      <div className="absolute top-4 right-4 z-20">
         <button
           onClick={() => router.push('/rooms')}
           className="px-3 sm:px-4 py-2 bg-gray-800/80 hover:bg-gray-700/80 backdrop-blur-sm rounded-lg transition-all text-xs sm:text-sm font-semibold text-gray-300 hover:text-white border border-gray-600/50 hover:border-gray-500 shadow-lg whitespace-nowrap"
         >
           🏠 房間列表
         </button>
-        
-        {/* 輸入房間代碼 */}
-        <div className="bg-gray-800/90 backdrop-blur-sm rounded-lg p-2 sm:p-3 border border-gray-600/50 shadow-lg">
-          <label className="block text-xs text-gray-400 mb-1.5">
-            輸入房間代碼
-          </label>
-          <div className="flex gap-1.5 sm:gap-2">
-            <input
-              type="text"
-              value={roomId}
-              onChange={(e) => setRoomId(e.target.value.toUpperCase())}
-              placeholder="ABC123"
-              className="w-20 sm:w-24 bg-gray-700 border border-gray-600 rounded px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              maxLength={6}
-            />
-            <button
-              onClick={handleJoinRoom}
-              disabled={!roomId.trim()}
-              className="bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 disabled:from-gray-600 disabled:to-gray-600 disabled:cursor-not-allowed text-white font-semibold px-2 sm:px-3 py-1.5 sm:py-2 rounded transition-all text-xs sm:text-sm whitespace-nowrap"
-            >
-              加入
-            </button>
-          </div>
-        </div>
       </div>
       
       {/* 内容 */}
@@ -267,7 +221,7 @@ export default function Home() {
           href="https://edward727.com/"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-xs sm:text-sm text-gray-400 hover:text-gray-300 transition-colors px-3 py-2 bg-gray-800/60 hover:bg-gray-800/80 backdrop-blur-sm rounded-lg border border-gray-700/50 hover:border-gray-600/50"
+          className="text-xs sm:text-sm text-gray-400 hover:text-gray-200 transition-colors underline decoration-gray-500 hover:decoration-gray-300"
         >
           Edward 網頁開發
         </a>
