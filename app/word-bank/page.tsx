@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { getAllWordBanks, createWordBank, updateWordBank, deleteWordBank, createDefaultWordBank1000 } from '@/lib/wordBank'
+import { getAllWordBanks, createWordBank, updateWordBank, deleteWordBank, createDefaultWordBank1000, createAdultWordBank100 } from '@/lib/wordBank'
 import { WordBank } from '@/types/game'
 import { DEFAULT_WORDS } from '@/lib/gameUtils'
 import { DEFAULT_WORD_BANK_100 } from '@/lib/defaultWordBank'
@@ -142,6 +142,19 @@ export default function WordBankPage() {
     }
   }
 
+  const handleCreateAdult100 = async () => {
+    if (!confirm('⚠️ 確定要創建「18禁題庫（100個詞彙）」嗎？\n此題庫包含成人向內容，僅限18歲以上使用。')) {
+      return
+    }
+    try {
+      await createAdultWordBank100()
+      alert('18禁題庫創建成功！')
+      loadWordBanks()
+    } catch (err: any) {
+      alert(err.message || '創建題庫失敗')
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-900">
@@ -185,6 +198,12 @@ export default function WordBankPage() {
                 className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg transition-colors text-xs sm:text-sm font-semibold"
               >
                 創建1000題庫
+              </button>
+              <button
+                onClick={handleCreateAdult100}
+                className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg transition-colors text-xs sm:text-sm font-semibold"
+              >
+                🔞 18禁題庫
               </button>
               <button
                 onClick={() => {

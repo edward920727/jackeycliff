@@ -135,3 +135,20 @@ export async function createDefaultWordBank1000(): Promise<string> {
   
   return await createWordBank('機密代號大型題庫（1000個詞彙）', DEFAULT_WORD_BANK_1000)
 }
+
+/**
+ * 創建18禁題庫（100個詞彙）
+ */
+export async function createAdultWordBank100(): Promise<string> {
+  const { ADULT_WORD_BANK_100 } = await import('./adultWordBank')
+  
+  // 檢查是否已經存在
+  const wordBanks = await getAllWordBanks()
+  const existing = wordBanks.find(bank => bank.name === '18禁題庫（100個詞彙）')
+  
+  if (existing) {
+    throw new Error('題庫「18禁題庫（100個詞彙）」已存在')
+  }
+  
+  return await createWordBank('18禁題庫（100個詞彙）', ADULT_WORD_BANK_100)
+}
