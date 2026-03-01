@@ -23,7 +23,7 @@ export default function GamePage() {
   const playerName = searchParams.get('name') || '匿名玩家'
   const selectedTeam = searchParams.get('team') as 'red' | 'blue' | null
   const playerIdRef = useRef<string>(`player_${Date.now()}_${Math.random().toString(36).substring(7)}`)
-  const playerTeamRef = useRef<'red' | 'blue' | null>(null) // 儲存玩家的隊伍
+  const playerTeamRef = useRef<'red' | 'blue' | null>(null) // 儲存玩家的隊伍（觀戰者為 null）
   const hasJoinedRef = useRef(false)
   const prevCardsRef = useRef<WordCard[]>([]) // 追蹤之前的卡片狀態
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -81,7 +81,24 @@ export default function GamePage() {
         const existingGame = await getGame(roomId)
         const existingPlayers = existingGame?.players || []
         
-        // 決定隊伍
+        // 觀戰者不需要隊伍
+        if (playerRole === 'spectator') {
+          const playerExists = existingPlayers.some(p => p.id === playerIdRef.current)
+          if (!playerExists) {
+            const newPlayer: Player = {
+              id: playerIdRef.current,
+              name: playerName,
+              role: 'spectator',
+              joined_at: new Date(),
+            }
+            await joinGame(roomId, newPlayer)
+          }
+          playerTeamRef.current = null // 觀戰者沒有隊伍
+          hasJoinedRef.current = true
+          return
+        }
+        
+        // 決定隊伍（非觀戰者）
         let assignedTeam: 'red' | 'blue'
         
         if (selectedTeam) {
@@ -190,9 +207,13 @@ export default function GamePage() {
 
   // 處理卡片點擊（顯示確認對話框）
   const handleCardClick = (index: number) => {
-    // 隊長不能點擊
-    if (playerRole === 'spymaster') {
-      alert('隊長不能點擊卡片，只能觀看')
+    // 隊長和觀戰者不能點擊
+    if (playerRole === 'spymaster' || playerRole === 'spectator') {
+      if (playerRole === 'spectator') {
+        alert('觀戰者不能點擊卡片，只能觀看')
+      } else {
+        alert('隊長不能點擊卡片，只能觀看')
+      }
       return
     }
     
@@ -396,8 +417,12 @@ export default function GamePage() {
   // 結束這回合
   const handleEndTurn = async () => {
     // 只有隊員可以結束回合
-    if (playerRole === 'spymaster') {
-      alert('隊長不能結束回合')
+    if (playerRole === 'spymaster' || playerRole === 'spectator') {
+      if (playerRole === 'spectator') {
+        alert('觀戰者不能結束回合')
+      } else {
+        alert('隊長不能結束回合')
+      }
       return
     }
 
@@ -461,8 +486,8 @@ export default function GamePage() {
     const hoverClass = isRevealing ? '' : 'transform hover:scale-105 active:scale-95'
     const revealClass = isRevealing ? 'card-reveal' : ''
     
-    // 隊長視角：顯示所有顏色（用透明度），已翻開的卡片更明顯
-    if (playerRole === 'spymaster') {
+    // 隊長和觀戰者視角：顯示所有顏色（用透明度），已翻開的卡片更明顯
+    if (playerRole === 'spymaster' || playerRole === 'spectator') {
       if (card.revealed) {
         // 已翻開的卡片：使用不透明度更高的顏色，並添加特殊標記
         const revealedColorMap: Record<CardColor, string> = {
@@ -563,6 +588,7 @@ export default function GamePage() {
             </div>
             {/* 結束這回合按鈕 - 只有當前回合的隊員可以看到 */}
             {playerRole === 'operative' && 
+             playerTeamRef.current !== null &&
              playerTeamRef.current === currentTurn && (
               <button
                 onClick={handleEndTurn}
@@ -696,6 +722,40 @@ export default function GamePage() {
               </div>
             </div>
           </div>
+
+          {/* 觀戰者列表 */}
+          {players.filter(p => p.role === 'spectator').length > 0 && (
+            <div className="bg-purple-600/10 border border-purple-500/30 rounded-lg p-2 sm:p-3 md:p-4 mb-3 sm:mb-4">
+              <div className="text-xs sm:text-sm font-semibold text-purple-300 mb-2 sm:mb-3 flex items-center gap-2">
+                <span>👁️</span>
+                <span>觀戰者</span>
+                <span className="text-[10px] sm:text-xs text-purple-400">
+                  ({players.filter(p => p.role === 'spectator').length} 人)
+                </span>
+              </div>
+              <div className="space-y-1.5 sm:space-y-2">
+                {players
+                  .filter(p => p.role === 'spectator')
+                  .map((player) => (
+                    <div
+                      key={player.id}
+                      className={`flex items-center justify-between text-xs sm:text-sm p-1.5 sm:p-2 rounded ${
+                        player.id === playerIdRef.current
+                          ? 'bg-purple-500/20 border border-purple-500/50'
+                          : 'bg-gray-700/30'
+                      }`}
+                    >
+                      <div className="flex items-center gap-1 sm:gap-2 min-w-0 flex-1">
+                        <span className="text-purple-300 truncate">{player.name}</span>
+                        {player.id === playerIdRef.current && (
+                          <span className="text-[10px] sm:text-xs text-purple-400 flex-shrink-0">(你)</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
           
           <div className="bg-gray-800/50 rounded-lg p-3 sm:p-4 border border-gray-700">
             <div className="flex items-center justify-between flex-wrap gap-2">
@@ -706,9 +766,11 @@ export default function GamePage() {
               <div className={`px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-semibold flex-shrink-0 ${
                 playerRole === 'spymaster'
                   ? 'bg-blue-500/20 text-blue-300 border border-blue-500/50'
+                  : playerRole === 'spectator'
+                  ? 'bg-purple-500/20 text-purple-300 border border-purple-500/50'
                   : 'bg-green-500/20 text-green-300 border border-green-500/50'
               }`}>
-                {playerRole === 'spymaster' ? '👁️ 隊長' : '👤 隊員'}
+                {playerRole === 'spymaster' ? '👁️ 隊長' : playerRole === 'spectator' ? '👁️ 觀戰者' : '👤 隊員'}
               </div>
             </div>
             <div className="mt-2 text-[10px] sm:text-xs text-gray-500">
@@ -724,7 +786,7 @@ export default function GamePage() {
               key={index}
               onClick={() => handleCardClick(index)}
               className={getCardStyle(card, index)}
-              disabled={playerRole === 'spymaster' || card.revealed || isUpdating || (playerTeamRef.current !== null && playerTeamRef.current !== currentTurn)}
+              disabled={playerRole === 'spymaster' || playerRole === 'spectator' || card.revealed || isUpdating || (playerTeamRef.current !== null && playerTeamRef.current !== currentTurn)}
             >
               <span className="break-words text-[10px] sm:text-xs md:text-sm lg:text-base leading-tight">{card.word}</span>
               {playerRole === 'spymaster' && card.revealed && (

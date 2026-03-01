@@ -54,6 +54,22 @@ export default function RoomsPage() {
     router.push(`/game/${roomId}?${params.toString()}`)
   }
 
+  const handleSpectateRoom = (roomId: string) => {
+    if (!playerName.trim()) {
+      alert('請先輸入您的名字')
+      return
+    }
+
+    // 保存玩家名稱到 localStorage
+    localStorage.setItem('playerName', playerName.trim())
+
+    const params = new URLSearchParams({
+      role: 'spectator',
+      name: playerName.trim(),
+    })
+    router.push(`/game/${roomId}?${params.toString()}`)
+  }
+
   const handleJoinRoomByCode = () => {
     if (!roomId.trim()) {
       alert('請輸入房間代碼')
@@ -75,6 +91,26 @@ export default function RoomsPage() {
       role: playerRole,
       name: playerName.trim(),
       team: playerTeam, // 隊伍是必選的
+    })
+    router.push(`/game/${roomId.toUpperCase()}?${params.toString()}`)
+  }
+
+  const handleSpectateRoomByCode = () => {
+    if (!roomId.trim()) {
+      alert('請輸入房間代碼')
+      return
+    }
+    if (!playerName.trim()) {
+      alert('請先輸入您的名字')
+      return
+    }
+
+    // 保存玩家名稱到 localStorage
+    localStorage.setItem('playerName', playerName.trim())
+
+    const params = new URLSearchParams({
+      role: 'spectator',
+      name: playerName.trim(),
     })
     router.push(`/game/${roomId.toUpperCase()}?${params.toString()}`)
   }
@@ -190,6 +226,14 @@ export default function RoomsPage() {
               className="bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 disabled:from-gray-600 disabled:to-gray-600 disabled:cursor-not-allowed text-white font-semibold px-4 sm:px-6 py-2 rounded-lg transition-all text-sm sm:text-base whitespace-nowrap"
             >
               加入房間
+            </button>
+            <button
+              onClick={handleSpectateRoomByCode}
+              disabled={!roomId.trim() || !playerName.trim()}
+              className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 disabled:from-gray-600 disabled:to-gray-600 disabled:cursor-not-allowed text-white font-semibold px-4 sm:px-6 py-2 rounded-lg transition-all text-sm sm:text-base whitespace-nowrap"
+              title="觀戰模式：可以觀看遊戲，但不能參與操作"
+            >
+              👁️ 觀戰
             </button>
           </div>
         </div>
@@ -361,13 +405,23 @@ export default function RoomsPage() {
                   </div>
 
                   {/* 加入按鈕 */}
-                  <button
-                    onClick={() => handleJoinRoom(room.room_id)}
-                    disabled={!playerName.trim() || !playerTeam}
-                    className="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 disabled:from-gray-600 disabled:to-gray-600 disabled:cursor-not-allowed text-white font-semibold py-2.5 px-4 rounded-lg transition-all shadow-lg hover:shadow-xl text-sm sm:text-base"
-                  >
-                    加入房間
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleJoinRoom(room.room_id)}
+                      disabled={!playerName.trim() || !playerTeam}
+                      className="flex-1 bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 disabled:from-gray-600 disabled:to-gray-600 disabled:cursor-not-allowed text-white font-semibold py-2.5 px-4 rounded-lg transition-all shadow-lg hover:shadow-xl text-sm sm:text-base"
+                    >
+                      加入房間
+                    </button>
+                    <button
+                      onClick={() => handleSpectateRoom(room.room_id)}
+                      disabled={!playerName.trim()}
+                      className="flex-1 bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 disabled:from-gray-600 disabled:to-gray-600 disabled:cursor-not-allowed text-white font-semibold py-2.5 px-4 rounded-lg transition-all shadow-lg hover:shadow-xl text-sm sm:text-base"
+                      title="觀戰模式：可以觀看遊戲，但不能參與操作"
+                    >
+                      👁️ 觀戰
+                    </button>
+                  </div>
                 </div>
               )
             })}

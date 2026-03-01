@@ -137,18 +137,23 @@ export async function joinGame(
     }
 
     // 驗證玩家數據
-    if (!player.id || !player.name || !player.team || !player.role) {
+    if (!player.id || !player.name || !player.role) {
       throw new Error('玩家數據不完整')
     }
 
-    // 驗證隊伍值
-    if (player.team !== 'red' && player.team !== 'blue') {
-      throw new Error('無效的隊伍值')
+    // 驗證角色值
+    if (player.role !== 'spymaster' && player.role !== 'operative' && player.role !== 'spectator') {
+      throw new Error('無效的角色值')
     }
 
-    // 驗證角色值
-    if (player.role !== 'spymaster' && player.role !== 'operative') {
-      throw new Error('無效的角色值')
+    // 驗證隊伍值（觀戰者不需要隊伍）
+    if (player.role !== 'spectator') {
+      if (!player.team) {
+        throw new Error('非觀戰者必須選擇隊伍')
+      }
+      if (player.team !== 'red' && player.team !== 'blue') {
+        throw new Error('無效的隊伍值')
+      }
     }
 
     await updateDoc(gameRef, {
@@ -197,7 +202,7 @@ export async function updateGame(
   wordsData: WordCard[], 
   currentTurn: 'red' | 'blue',
   playerId?: string,
-  playerRole?: 'spymaster' | 'operative',
+  playerRole?: 'spymaster' | 'operative' | 'spectator',
   playerTeam?: 'red' | 'blue'
 ): Promise<void> {
   try {
@@ -236,9 +241,9 @@ export async function updateGame(
         throw new Error('您不是此遊戲的玩家')
       }
 
-      // 驗證玩家角色：隊長不能點擊卡片
-      if (playerRole === 'spymaster') {
-        throw new Error('隊長不能點擊卡片')
+      // 驗證玩家角色：隊長和觀戰者不能點擊卡片
+      if (playerRole === 'spymaster' || playerRole === 'spectator') {
+        throw new Error(playerRole === 'spectator' ? '觀戰者不能操作遊戲' : '隊長不能點擊卡片')
       }
 
       // 驗證玩家隊伍是否匹配

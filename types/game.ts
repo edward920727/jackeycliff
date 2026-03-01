@@ -9,8 +9,8 @@ export interface WordCard {
 export interface Player {
   id: string
   name: string
-  team: 'red' | 'blue'
-  role: 'spymaster' | 'operative'
+  team?: 'red' | 'blue' // 观战者没有队伍
+  role: 'spymaster' | 'operative' | 'spectator'
   joined_at: Date
 }
 
@@ -23,7 +23,7 @@ export interface GameData {
   updated_at?: any
 }
 
-export type PlayerRole = 'spymaster' | 'operative'
+export type PlayerRole = 'spymaster' | 'operative' | 'spectator'
 
 export interface WordBank {
   id: string
