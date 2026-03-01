@@ -74,22 +74,19 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
-      {/* 渐变背景 */}
-      <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900"></div>
-      
-      {/* 右侧背景图片 */}
-      <div className="absolute right-0 top-0 bottom-0 w-1/2 hidden md:block">
+      {/* 全屏背景图片 - 机密行动主题（Unsplash 无版权图片） */}
+      <div className="absolute inset-0 w-full h-full">
         <div 
           className="h-full w-full"
           style={{
-            backgroundImage: 'url(/background.jpg)',
+            backgroundImage: 'url(https://images.unsplash.com/photo-1519681393784-d120267933ba?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80)',
             backgroundSize: 'cover',
             backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat',
           }}
         />
-        {/* 右侧图片的轻微覆盖层 */}
-        <div className="absolute inset-0 bg-black/30"></div>
+        {/* 背景图片的覆盖层，确保内容可读性 */}
+        <div className="absolute inset-0 bg-black/40"></div>
       </div>
       
       {/* 規則按鈕 - 左上角 */}
@@ -100,13 +97,39 @@ export default function Home() {
         📖 遊戲規則
       </button>
 
-      {/* 房間列表按鈕 - 右上角 */}
-      <button
-        onClick={() => router.push('/rooms')}
-        className="absolute top-4 right-4 z-20 px-3 sm:px-4 py-2 bg-gray-800/80 hover:bg-gray-700/80 backdrop-blur-sm rounded-lg transition-all text-xs sm:text-sm font-semibold text-gray-300 hover:text-white border border-gray-600/50 hover:border-gray-500 shadow-lg"
-      >
-        🏠 房間列表
-      </button>
+      {/* 右上角區域 - 房間列表和輸入房間代碼 */}
+      <div className="absolute top-4 right-4 z-20 flex flex-col gap-2 items-end">
+        <button
+          onClick={() => router.push('/rooms')}
+          className="px-3 sm:px-4 py-2 bg-gray-800/80 hover:bg-gray-700/80 backdrop-blur-sm rounded-lg transition-all text-xs sm:text-sm font-semibold text-gray-300 hover:text-white border border-gray-600/50 hover:border-gray-500 shadow-lg whitespace-nowrap"
+        >
+          🏠 房間列表
+        </button>
+        
+        {/* 輸入房間代碼 */}
+        <div className="bg-gray-800/90 backdrop-blur-sm rounded-lg p-2 sm:p-3 border border-gray-600/50 shadow-lg">
+          <label className="block text-xs text-gray-400 mb-1.5">
+            輸入房間代碼
+          </label>
+          <div className="flex gap-1.5 sm:gap-2">
+            <input
+              type="text"
+              value={roomId}
+              onChange={(e) => setRoomId(e.target.value.toUpperCase())}
+              placeholder="ABC123"
+              className="w-20 sm:w-24 bg-gray-700 border border-gray-600 rounded px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              maxLength={6}
+            />
+            <button
+              onClick={handleJoinRoom}
+              disabled={!roomId.trim()}
+              className="bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 disabled:from-gray-600 disabled:to-gray-600 disabled:cursor-not-allowed text-white font-semibold px-2 sm:px-3 py-1.5 sm:py-2 rounded transition-all text-xs sm:text-sm whitespace-nowrap"
+            >
+              加入
+            </button>
+          </div>
+        </div>
+      </div>
       
       {/* 内容 */}
       <div className="relative z-10 bg-gray-900/90 backdrop-blur-xl rounded-2xl shadow-2xl p-4 sm:p-6 md:p-8 w-full max-w-md border border-gray-700/50">
@@ -235,39 +258,19 @@ export default function Home() {
               建立新房間
             </button>
           </div>
-
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-600"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-gray-800 text-gray-400">或</span>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-2">
-              輸入房間代碼
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={roomId}
-                onChange={(e) => setRoomId(e.target.value.toUpperCase())}
-                placeholder="例如: ABC123"
-                className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                maxLength={6}
-              />
-              <button
-                onClick={handleJoinRoom}
-                disabled={!roomId.trim()}
-                className="bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 disabled:from-gray-600 disabled:to-gray-600 disabled:cursor-not-allowed text-white font-semibold py-2.5 sm:py-3 px-4 sm:px-6 rounded-lg transition-all shadow-lg hover:shadow-xl text-sm sm:text-base whitespace-nowrap"
-              >
-                加入
-              </button>
-            </div>
-          </div>
         </div>
+      </div>
+
+      {/* 底部連結 */}
+      <div className="absolute bottom-4 left-0 right-0 z-20 flex justify-center">
+        <a
+          href="https://edward727.com/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs sm:text-sm text-gray-400 hover:text-gray-300 transition-colors px-3 py-2 bg-gray-800/60 hover:bg-gray-800/80 backdrop-blur-sm rounded-lg border border-gray-700/50 hover:border-gray-600/50"
+        >
+          Edward 網頁開發
+        </a>
       </div>
     </div>
   )
