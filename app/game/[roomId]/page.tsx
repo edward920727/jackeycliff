@@ -180,7 +180,7 @@ export default function GamePage() {
           if (hasJoinedRef.current) {
             const currentPlayer = gameData.players?.find(p => p.id === playerIdRef.current)
             if (currentPlayer) {
-              playerTeamRef.current = currentPlayer.team
+              playerTeamRef.current = currentPlayer.team || null
             }
           }
         } else {
