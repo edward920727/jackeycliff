@@ -90,15 +90,17 @@ export async function createGame(
     
     console.log('createGame - wordBankId:', wordBankId, 'existingWordBankId:', existingWordBankId, 'finalWordBankId:', finalWordBankId, 'keepPlayers:', keepPlayers)
     
+    // 構建遊戲數據，只有當 finalWordBankId 有值時才包含 word_bank_id 字段
+    // Firestore 不允許字段值為 undefined
     const gameData: GameData = {
       room_id: roomId,
       words_data: wordsData,
       current_turn: 'red',
       players: existingPlayers,
       used_words: usedWords !== undefined ? usedWords : existingUsedWords, // 使用傳入的已使用詞彙列表，或保留現有的
-      word_bank_id: finalWordBankId, // 記錄題庫ID
       created_at: new Date(),
       updated_at: new Date(),
+      ...(finalWordBankId !== undefined && finalWordBankId !== null && finalWordBankId !== '' ? { word_bank_id: finalWordBankId } : {}), // 只有當有值時才包含此字段
     }
     await setDoc(gameRef, gameData)
     
