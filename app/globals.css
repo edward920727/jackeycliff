@@ -25,4 +25,21 @@
   .animate-background {
     animation: backgroundMove 20s ease-in-out infinite;
   }
+
+  /* 卡片翻開特效 - 旋轉 */
+  @keyframes cardReveal {
+    0% {
+      transform: perspective(1000px) rotateY(0deg);
+    }
+    100% {
+      transform: perspective(1000px) rotateY(360deg);
+    }
+  }
+
+  /* 應用翻開特效的類 */
+  .card-reveal {
+    animation: cardReveal 0.8s ease-in-out;
+    transform-style: preserve-3d;
+    backface-visibility: hidden;
+  }
 }

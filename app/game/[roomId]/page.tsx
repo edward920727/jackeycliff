@@ -25,6 +25,7 @@ export default function GamePage() {
   const playerIdRef = useRef<string>(`player_${Date.now()}_${Math.random().toString(36).substring(7)}`)
   const playerTeamRef = useRef<'red' | 'blue' | null>(null) // 儲存玩家的隊伍
   const hasJoinedRef = useRef(false)
+  const prevCardsRef = useRef<WordCard[]>([]) // 追蹤之前的卡片狀態
   const [confirmDialog, setConfirmDialog] = useState<{
     show: boolean
     cardIndex: number | null
@@ -36,6 +37,7 @@ export default function GamePage() {
     loser: 'red' | 'blue' | null
     reason: 'victory' | 'assassin' // victory: 翻完所有卡片, assassin: 點到刺客
   }>({ show: false, winner: null, loser: null, reason: 'victory' })
+  const [revealingCardIndex, setRevealingCardIndex] = useState<number | null>(null) // 正在翻開的卡片索引
 
   // 初始化或載入遊戲數據
   useEffect(() => {
@@ -47,6 +49,7 @@ export default function GamePage() {
         if (existingGame) {
           // 遊戲已存在，載入數據
           setCards(existingGame.words_data)
+          prevCardsRef.current = [...existingGame.words_data]
           setCurrentTurn(existingGame.current_turn)
           setPlayers(existingGame.players || [])
         } else {
@@ -54,6 +57,7 @@ export default function GamePage() {
           const wordBankId = searchParams.get('wordBank') || undefined
           const initialCards = await initializeGame(roomId, wordBankId)
           setCards(initialCards)
+          prevCardsRef.current = [...initialCards]
           setCurrentTurn('red')
           setPlayers([])
         }
@@ -133,6 +137,24 @@ export default function GamePage() {
       if (gameData) {
         // 驗證數據完整性
         if (gameData.words_data && gameData.words_data.length === 25) {
+          // 檢測新翻開的卡片
+          const prevCards = prevCardsRef.current
+          if (prevCards.length === 25) {
+            gameData.words_data.forEach((newCard, index) => {
+              const prevCard = prevCards[index]
+              if (!prevCard.revealed && newCard.revealed) {
+                // 卡片從未翻開變為已翻開，觸發特效
+                setRevealingCardIndex(index)
+                setTimeout(() => {
+                  setRevealingCardIndex(null)
+                }, 3000)
+              }
+            })
+          }
+          
+          // 更新之前的卡片狀態
+          prevCardsRef.current = [...gameData.words_data]
+          
           setCards(gameData.words_data)
           setCurrentTurn(gameData.current_turn)
           setPlayers(gameData.players || [])
@@ -247,6 +269,16 @@ export default function GamePage() {
 
       const newCards = [...latestGame.words_data]
       newCards[index].revealed = true
+
+      // 先更新本地狀態以立即觸發動畫
+      setCards(newCards)
+      
+      // 設置翻開特效
+      setRevealingCardIndex(index)
+      // 3秒後清除特效狀態
+      setTimeout(() => {
+        setRevealingCardIndex(null)
+      }, 3000)
 
       // 判斷是否換回合和遊戲結束
       const clickedColor = newCards[index].color
@@ -422,7 +454,12 @@ export default function GamePage() {
 
   // 獲取卡片樣式
   const getCardStyle = (card: WordCard, index: number) => {
-    const baseStyle = 'w-full aspect-square rounded-md sm:rounded-lg border-2 transition-all duration-300 flex items-center justify-center text-center p-1 sm:p-2 font-semibold cursor-pointer transform hover:scale-105 active:scale-95'
+    const isRevealing = revealingCardIndex === index && card.revealed
+    // 如果正在翻開，移除 transition 以避免與動畫衝突
+    const transitionClass = isRevealing ? '' : 'transition-all duration-300'
+    const baseStyle = `w-full aspect-square rounded-md sm:rounded-lg border-2 ${transitionClass} flex items-center justify-center text-center p-1 sm:p-2 font-semibold cursor-pointer`
+    const hoverClass = isRevealing ? '' : 'transform hover:scale-105 active:scale-95'
+    const revealClass = isRevealing ? 'card-reveal' : ''
     
     // 隊長視角：顯示所有顏色（用透明度），已翻開的卡片更明顯
     if (playerRole === 'spymaster') {
@@ -434,7 +471,7 @@ export default function GamePage() {
           black: 'bg-gray-800/80 border-gray-600 text-white ring-2 ring-gray-400 ring-offset-1',
           beige: 'bg-yellow-600/80 border-yellow-500 text-white ring-2 ring-yellow-400 ring-offset-1',
         }
-        return `${baseStyle} ${revealedColorMap[card.color]} cursor-not-allowed relative`
+        return `${baseStyle} ${hoverClass} ${revealedColorMap[card.color]} cursor-not-allowed relative ${revealClass}`
       } else {
         // 未翻開的卡片：使用透明度較低的顏色
         const colorMap: Record<CardColor, string> = {
@@ -443,7 +480,7 @@ export default function GamePage() {
           black: 'bg-gray-800/30 border-gray-600/50 text-gray-300',
           beige: 'bg-yellow-600/30 border-yellow-500/50 text-yellow-200',
         }
-        return `${baseStyle} ${colorMap[card.color]} cursor-not-allowed`
+        return `${baseStyle} ${hoverClass} ${colorMap[card.color]} cursor-not-allowed`
       }
     }
     
@@ -455,11 +492,11 @@ export default function GamePage() {
         black: 'bg-gray-800 border-gray-600 text-white',
         beige: 'bg-yellow-600 border-yellow-500 text-white',
       }
-      return `${baseStyle} ${colorMap[card.color]}`
+      return `${baseStyle} ${hoverClass} ${colorMap[card.color]} ${revealClass}`
     }
     
     // 未翻開的卡片
-    return `${baseStyle} bg-gray-700 border-gray-600 text-gray-200 hover:bg-gray-600 hover:border-gray-500`
+    return `${baseStyle} ${hoverClass} bg-gray-700 border-gray-600 text-gray-200 hover:bg-gray-600 hover:border-gray-500`
   }
 
   if (loading) {
