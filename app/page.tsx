@@ -75,12 +75,12 @@ export default function Home() {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
       {/* 全屏背景图片 - 机密行动主题（Unsplash 无版权图片） */}
-      <div className="absolute inset-0 w-full h-full">
+      <div className="absolute inset-0 w-full h-full overflow-hidden">
         <div 
-          className="h-full w-full"
+          className="h-full w-full animate-background"
           style={{
             backgroundImage: 'url(https://images.unsplash.com/photo-1519681393784-d120267933ba?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80)',
-            backgroundSize: 'cover',
+            backgroundSize: '120%',
             backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat',
           }}

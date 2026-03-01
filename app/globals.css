@@ -7,3 +7,22 @@
     @apply bg-gray-900 text-white;
   }
 }
+
+@layer utilities {
+  /* 背景动画 - Ken Burns 效果（缓慢缩放和平移） */
+  @keyframes backgroundMove {
+    0% {
+      transform: scale(1) translate(0, 0);
+    }
+    50% {
+      transform: scale(1.1) translate(-2%, -2%);
+    }
+    100% {
+      transform: scale(1) translate(0, 0);
+    }
+  }
+
+  .animate-background {
+    animation: backgroundMove 20s ease-in-out infinite;
+  }
+}
