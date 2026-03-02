@@ -23,7 +23,7 @@ export default function GameHub() {
           選擇一款遊戲開始玩吧！
         </p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
           {/* 機密代號 */}
               <button
             onClick={() => router.push('/codenames')}
@@ -61,6 +61,17 @@ export default function GameHub() {
               5–10 人適合｜支援線上房間、身分發牌、任務紀錄
             </p>
             </button>
+        </div>
+
+        <div className="mt-4 flex justify-center">
+          <a
+            href="https://edward727.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs sm:text-sm text-gray-300 hover:text-gray-100 transition-colors underline decoration-gray-500 hover:decoration-gray-300"
+          >
+            Edward 網頁開發
+          </a>
         </div>
       </div>
     </div>

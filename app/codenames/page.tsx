@@ -221,17 +221,6 @@ export default function CodenamesHome() {
         </div>
       </div>
 
-      {/* 底部連結 */}
-      <div className="absolute bottom-4 left-0 right-0 z-20 flex justify-center">
-        <a
-          href="https://edward727.com/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-xs sm:text-sm text-gray-400 hover:text-gray-200 transition-colors underline decoration-gray-500 hover:decoration-gray-300"
-        >
-          Edward 網頁開發
-        </a>
-      </div>
     </div>
   )
 }
