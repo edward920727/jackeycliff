@@ -171,10 +171,10 @@ export default function WordBankPage() {
       <div className="max-w-4xl mx-auto">
         <div className="mb-4 sm:mb-6">
           <button
-            onClick={() => router.push('/')}
+            onClick={() => router.push('/codenames')}
             className="mb-3 sm:mb-4 px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-xs sm:text-sm font-semibold"
           >
-            ← 返回首頁
+            ← 返回機密代號
           </button>
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
             <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-red-500 to-blue-500 bg-clip-text text-transparent">

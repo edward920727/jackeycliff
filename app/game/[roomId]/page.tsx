@@ -610,10 +610,10 @@ export default function GamePage() {
           <div className="flex items-center justify-between mb-3 sm:mb-4 flex-wrap gap-2 sm:gap-4">
             <div className="flex items-center gap-2 sm:gap-4">
               <button
-                onClick={() => router.push('/')}
+                onClick={() => router.push('/codenames')}
                 className="px-2 sm:px-4 py-1.5 sm:py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-xs sm:text-sm font-semibold"
               >
-                ← 返回
+                ← 返回機密代號
               </button>
               <h1 className="text-xl sm:text-2xl md:text-3xl font-bold bg-gradient-to-r from-red-500 to-blue-500 bg-clip-text text-transparent">
                 機密代號

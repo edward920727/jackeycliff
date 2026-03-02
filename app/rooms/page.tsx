@@ -183,10 +183,10 @@ export default function RoomsPage() {
       <div className="relative z-10 max-w-6xl mx-auto">
         {/* 返回按鈕 */}
         <button
-          onClick={() => router.push('/')}
+          onClick={() => router.push('/codenames')}
           className="mb-6 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-sm font-semibold"
         >
-          ← 返回首頁
+          ← 返回機密代號
         </button>
 
         {/* 標題 */}
@@ -337,12 +337,12 @@ export default function RoomsPage() {
           <div className="bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-2xl p-8 sm:p-12 border border-gray-700/50 text-center">
             <div className="text-6xl mb-4">🏠</div>
             <h3 className="text-xl sm:text-2xl font-semibold text-white mb-2">目前沒有房間</h3>
-            <p className="text-gray-400 mb-6">返回首頁創建新房間吧！</p>
+            <p className="text-gray-400 mb-6">返回機密代號創建新房間吧！</p>
             <button
-              onClick={() => router.push('/')}
+              onClick={() => router.push('/codenames')}
               className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-semibold rounded-lg transition-all"
             >
-              返回首頁
+              返回機密代號
             </button>
           </div>
         ) : (
