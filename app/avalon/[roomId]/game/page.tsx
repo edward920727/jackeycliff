@@ -98,6 +98,72 @@ export default function AvalonGamePage() {
     )
   }
 
+  const myPlayer: AvalonPlayer | undefined = useMemo(() => {
+    if (!game || !pid) return undefined
+    return game.players.find((p) => p.participantId === pid)
+  }, [game, pid])
+
+  const serverTeamSeats = game?.proposedTeamSeats || []
+
+  // 當進入隊長選人階段時，將本地選人狀態同步為目前伺服器上的隊伍（或清空）
+  useEffect(() => {
+    if (game?.phase === 'leader_select') {
+      setLocalTeamSeats(serverTeamSeats)
+    } else {
+      setLocalTeamSeats([])
+    }
+  }, [game?.phase, serverTeamSeats.join(',')])
+
+  const handleSelectTeam = async (seat: number) => {
+    if (!isLeader || game.phase !== 'leader_select') return
+
+    let next: number[]
+    if (localTeamSeats.includes(seat)) {
+      next = localTeamSeats.filter((s) => s !== seat)
+    } else {
+      next = [...localTeamSeats, seat]
+    }
+
+    // 前端先限制最多 teamSize 個人
+    if (next.length > teamSize) return
+
+    setLocalTeamSeats(next)
+  }
+
+  const handleConfirmTeam = async () => {
+    if (!isLeader || game.phase !== 'leader_select') return
+
+    if (localTeamSeats.length !== teamSize) {
+      alert(`本輪需要選擇 ${teamSize} 人出任務`)
+      return
+    }
+
+    try {
+      await selectMissionTeam(roomId, pid, localTeamSeats)
+    } catch (err) {
+      console.error(err)
+      alert((err as Error).message)
+    }
+  }
+
+  const handleTeamVote = async (approve: boolean) => {
+    try {
+      await submitTeamVote(roomId, pid, approve)
+    } catch (err) {
+      console.error(err)
+      alert((err as Error).message)
+    }
+  }
+
+  const handleMissionVote = async (success: boolean) => {
+    try {
+      await submitMissionVote(roomId, pid, success)
+    } catch (err) {
+      console.error(err)
+      alert((err as Error).message)
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#1a0f07] via-[#26140b] to-black">
@@ -124,11 +190,6 @@ export default function AvalonGamePage() {
       </div>
     )
   }
-
-  const myPlayer: AvalonPlayer | undefined = useMemo(() => {
-    if (!game || !pid) return undefined
-    return game.players.find((p) => p.participantId === pid)
-  }, [game, pid])
 
   if (!game) {
     return null
@@ -181,68 +242,8 @@ export default function AvalonGamePage() {
 
   const currentRound = game.currentRound ?? 1
   const teamSize = getMissionTeamSize(game.player_count, currentRound)
-  const serverTeamSeats = game.proposedTeamSeats || []
   const isLeader = game.leaderSeat === myPlayer.seat
   const isOnProposedTeam = serverTeamSeats.includes(myPlayer.seat)
-
-  // 當進入隊長選人階段時，將本地選人狀態同步為目前伺服器上的隊伍（或清空）
-  useEffect(() => {
-    if (game.phase === 'leader_select') {
-      setLocalTeamSeats(serverTeamSeats)
-    } else {
-      setLocalTeamSeats([])
-    }
-  }, [game.phase, serverTeamSeats.join(',')])
-
-  const handleSelectTeam = async (seat: number) => {
-    if (!isLeader || game.phase !== 'leader_select') return
-
-    let next: number[]
-    if (localTeamSeats.includes(seat)) {
-      next = localTeamSeats.filter((s) => s !== seat)
-    } else {
-      next = [...localTeamSeats, seat]
-    }
-
-    // 前端先限制最多 teamSize 個人
-    if (next.length > teamSize) return
-
-    setLocalTeamSeats(next)
-  }
-
-  const handleConfirmTeam = async () => {
-    if (!isLeader || game.phase !== 'leader_select') return
-
-    if (localTeamSeats.length !== teamSize) {
-      alert(`本輪需要選擇 ${teamSize} 人出任務`)
-      return
-    }
-
-    try {
-      await selectMissionTeam(roomId, pid, localTeamSeats)
-    } catch (err) {
-      console.error(err)
-      alert((err as Error).message)
-    }
-  }
-
-  const handleTeamVote = async (approve: boolean) => {
-    try {
-      await submitTeamVote(roomId, pid, approve)
-    } catch (err) {
-      console.error(err)
-      alert((err as Error).message)
-    }
-  }
-
-  const handleMissionVote = async (success: boolean) => {
-    try {
-      await submitMissionVote(roomId, pid, success)
-    } catch (err) {
-      console.error(err)
-      alert((err as Error).message)
-    }
-  }
 
   return (
     <div
