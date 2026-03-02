@@ -115,7 +115,7 @@ export default function AvalonGamePage() {
   }, [game?.phase, serverTeamSeats.join(',')])
 
   const handleSelectTeam = async (seat: number) => {
-    if (!game || !isLeader || game.phase !== 'leader_select') return
+    if (!isLeader || game?.phase !== 'leader_select') return
 
     let next: number[]
     if (localTeamSeats.includes(seat)) {
@@ -131,7 +131,7 @@ export default function AvalonGamePage() {
   }
 
   const handleConfirmTeam = async () => {
-    if (!game || !isLeader || game.phase !== 'leader_select') return
+    if (!isLeader || game?.phase !== 'leader_select') return
 
     if (localTeamSeats.length !== teamSize) {
       alert(`本輪需要選擇 ${teamSize} 人出任務`)
