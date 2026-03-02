@@ -87,6 +87,12 @@ export default function CodenamesHome() {
       
       {/* 内容 */}
       <div className="relative z-10 bg-gray-900/90 backdrop-blur-xl rounded-2xl shadow-2xl p-4 sm:p-6 md:p-8 w-full max-w-md border border-gray-700/50">
+        <button
+          onClick={() => router.push('/')}
+          className="mb-4 px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-800/80 hover:bg-gray-700/80 rounded-lg transition-all text-xs sm:text-sm font-semibold text-gray-200 border border-gray-600/60 hover:text-white"
+        >
+          ← 返回遊戲大廳
+        </button>
         <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-center mb-2 bg-gradient-to-r from-red-500 to-blue-500 bg-clip-text text-transparent">
           機密代號
         </h1>
