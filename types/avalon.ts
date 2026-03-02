@@ -2,7 +2,12 @@ import type { AvalonFaction, AvalonRoleId } from '@/lib/avalon/constants'
 
 export type AvalonStatus = 'lobby' | 'started' | 'finished'
 
-export type AvalonPhase = 'leader_select' | 'team_vote' | 'mission' | 'round_result'
+export type AvalonPhase =
+  | 'leader_select'
+  | 'team_vote'
+  | 'mission'
+  | 'round_result'
+  | 'assassination'
 
 export interface AvalonParticipant {
   /** 用來辨識連線玩家（存在 localStorage） */
@@ -67,6 +72,10 @@ export interface AvalonGameData {
   missionVotes?: AvalonMissionVote[]
   /** 已完成的任務結果列表，用來顯示進度條 */
   missionResults?: AvalonMissionResult[]
+  /** 若進入刺殺階段，記錄刺客選擇刺殺的目標座位（方便之後顯示） */
+  assassinationTargetSeat?: number
+  /** 記錄哪一個玩家是刺客（participantId），方便驗證誰可以操作刺殺 */
+  assassinParticipantId?: string
   /** 若遊戲結束，紀錄哪一方獲勝（good / evil） */
   winnerFaction?: AvalonFaction
 

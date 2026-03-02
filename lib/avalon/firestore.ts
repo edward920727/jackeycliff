@@ -183,6 +183,8 @@ export async function startAvalonGame(roomId: string): Promise<void> {
     }
   })
 
+  const assassinPlayer = players.find((p) => p.roleId === 'assassin')
+
   const firstLeaderSeat = players[0]?.seat ?? 1
 
   await updateDoc(gameRef, {
@@ -198,6 +200,8 @@ export async function startAvalonGame(roomId: string): Promise<void> {
     votes: [],
     missionVotes: [],
     missionResults: [],
+    assassinParticipantId: assassinPlayer?.participantId,
+    assassinationTargetSeat: null,
     updated_at: new Date(),
   })
 }
@@ -395,42 +399,95 @@ export async function submitMissionVote(
   const successCount = allResults.filter((r) => r.success).length
   const failMissionCount = allResults.filter((r) => !r.success).length
 
-  let winnerFaction: 'good' | 'evil' | undefined
-  if (successCount >= 3) {
-    winnerFaction = 'good'
-  } else if (failMissionCount >= 3) {
-    winnerFaction = 'evil'
-  }
-
-  if (winnerFaction) {
-    // 遊戲結束
+  // 若壞人已經拿到 3 次任務失敗，直接結束遊戲
+  if (failMissionCount >= 3) {
     await updateDoc(gameRef, {
       missionVotes: newVotes,
       missionResults: allResults,
       status: 'finished',
       phase: 'round_result',
-      winnerFaction,
+      winnerFaction: 'evil',
       updated_at: new Date(),
     })
-  } else {
-    // 進入下一輪
-    const nextRound = currentRound + 1
-    const currentLeaderSeat = data.leaderSeat ?? players[0]?.seat ?? 1
-    const currentLeaderIndex = players.findIndex((p) => p.seat === currentLeaderSeat)
-    const nextLeaderSeat =
-      players[(currentLeaderIndex + 1) % players.length]?.seat ?? currentLeaderSeat
+    return
+  }
 
+  // 若好人已經拿到 3 次任務成功，進入刺殺階段
+  if (successCount >= 3) {
     await updateDoc(gameRef, {
       missionVotes: newVotes,
       missionResults: allResults,
-      currentRound: nextRound,
-      currentProposal: 1,
-      leaderSeat: nextLeaderSeat,
-      phase: 'leader_select',
-      proposedTeamSeats: [],
+      phase: 'assassination',
       updated_at: new Date(),
     })
+    return
   }
+
+  // 否則進入下一輪
+  const nextRound = currentRound + 1
+  const currentLeaderSeat = data.leaderSeat ?? players[0]?.seat ?? 1
+  const currentLeaderIndex = players.findIndex((p) => p.seat === currentLeaderSeat)
+  const nextLeaderSeat =
+    players[(currentLeaderIndex + 1) % players.length]?.seat ?? currentLeaderSeat
+
+  await updateDoc(gameRef, {
+    missionVotes: newVotes,
+    missionResults: allResults,
+    currentRound: nextRound,
+    currentProposal: 1,
+    leaderSeat: nextLeaderSeat,
+    phase: 'leader_select',
+    proposedTeamSeats: [],
+    updated_at: new Date(),
+  })
+}
+
+/**
+ * 刺客在刺殺階段選擇要刺殺的目標
+ */
+export async function submitAssassination(
+  roomId: string,
+  assassinParticipantId: string,
+  targetSeat: number
+): Promise<void> {
+  const gameRef = doc(db, COLLECTION_NAME, roomId)
+  const snap = await getDoc(gameRef)
+  if (!snap.exists()) {
+    throw new Error('房間不存在')
+  }
+
+  const data = snap.data() as AvalonGameData
+  if (data.status !== 'started') {
+    throw new Error('遊戲尚未開始或已結束')
+  }
+  if (data.phase !== 'assassination') {
+    throw new Error('目前不是刺殺階段')
+  }
+
+  const players = data.players || []
+  const assassinPlayer = players.find((p) => p.roleId === 'assassin')
+  if (!assassinPlayer) {
+    throw new Error('本局中沒有刺客')
+  }
+  if (assassinPlayer.participantId !== assassinParticipantId) {
+    throw new Error('只有刺客可以執行刺殺')
+  }
+
+  const targetPlayer = players.find((p) => p.seat === targetSeat)
+  if (!targetPlayer) {
+    throw new Error('找不到被刺殺目標')
+  }
+
+  const merlinKilled = targetPlayer.roleId === 'merlin'
+  const winnerFaction: 'good' | 'evil' = merlinKilled ? 'evil' : 'good'
+
+  await updateDoc(gameRef, {
+    status: 'finished',
+    phase: 'round_result',
+    winnerFaction,
+    assassinationTargetSeat: targetSeat,
+    updated_at: new Date(),
+  })
 }
 
 export function subscribeToAvalonGame(

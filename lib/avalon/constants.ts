@@ -8,6 +8,7 @@ export type AvalonRoleId =
   | 'morgana'
   | 'mordred'
   | 'oberon'
+  | 'minion'
 
 export interface AvalonRole {
   id: AvalonRoleId
@@ -29,7 +30,7 @@ export const AVALON_ROLES: Record<AvalonRoleId, AvalonRole> = {
     name: '梅林',
     faction: 'good',
     // 官方規則：梅林可以看到所有邪惡陣營，唯獨看不到莫德雷德
-    sees: ['assassin', 'morgana', 'oberon'],
+    sees: ['assassin', 'morgana', 'oberon', 'minion'],
   },
   percival: {
     id: 'percival',
@@ -49,20 +50,20 @@ export const AVALON_ROLES: Record<AvalonRoleId, AvalonRole> = {
     name: '刺客',
     faction: 'evil',
     // 邪惡陣營彼此互相看見（除了奧伯倫）
-    sees: ['morgana', 'mordred'],
+    sees: ['morgana', 'mordred', 'minion'],
   },
   morgana: {
     id: 'morgana',
     name: '莫甘娜',
     faction: 'evil',
-    sees: ['assassin', 'mordred'],
+    sees: ['assassin', 'mordred', 'minion'],
   },
   mordred: {
     id: 'mordred',
     name: '莫德雷德',
     faction: 'evil',
     // 莫德雷德對其他邪惡成員可見，梅林看不到莫德雷德
-    sees: ['assassin', 'morgana'],
+    sees: ['assassin', 'morgana', 'minion'],
   },
   oberon: {
     id: 'oberon',
@@ -70,6 +71,13 @@ export const AVALON_ROLES: Record<AvalonRoleId, AvalonRole> = {
     faction: 'evil',
     // 奧伯倫是「隱藏的邪惡」，雙方都看不到彼此
     sees: [],
+  },
+  minion: {
+    id: 'minion',
+    name: '莫德雷德的爪牙',
+    faction: 'evil',
+    // 爪牙看得到其他所有公開的壞人，但看不到奧伯倫
+    sees: ['assassin', 'morgana', 'mordred', 'minion'],
   },
 }
 

@@ -79,12 +79,20 @@ export default function AvalonLobby() {
             >
               ← 返回遊戲大廳
             </button>
-            <button
-              onClick={() => router.push('/avalon/rooms')}
-              className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-b from-slate-900/90 to-slate-800/90 hover:from-slate-800 hover:to-slate-700 rounded-lg transition-colors text-[11px] sm:text-xs font-semibold text-amber-100/90 border border-yellow-900/60 shadow-md"
-            >
-              查看阿瓦隆房間列表
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => router.push('/avalon/rules')}
+                className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-b from-slate-900/90 to-slate-800/90 hover:from-slate-800 hover:to-slate-700 rounded-lg transition-colors text-[11px] sm:text-xs font-semibold text-amber-100/90 border border-yellow-900/60 shadow-md"
+              >
+                遊戲規則
+              </button>
+              <button
+                onClick={() => router.push('/avalon/rooms')}
+                className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-b from-slate-900/90 to-slate-800/90 hover:from-slate-800 hover:to-slate-700 rounded-lg transition-colors text-[11px] sm:text-xs font-semibold text-amber-100/90 border border-yellow-900/60 shadow-md"
+              >
+                查看房間列表
+              </button>
+            </div>
           </div>
 
           <div className="flex items-center gap-3 mb-4">

@@ -11,6 +11,7 @@ import {
   selectMissionTeam,
   submitMissionVote,
   submitTeamVote,
+  submitAssassination,
 } from '@/lib/avalon/firestore'
 
 export default function AvalonGamePage() {
@@ -23,6 +24,7 @@ export default function AvalonGamePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [localTeamSeats, setLocalTeamSeats] = useState<number[]>([])
+  const [assassinationTarget, setAssassinationTarget] = useState<number | null>(null)
 
   const pid = searchParams.get('pid') || ''
 
@@ -163,6 +165,22 @@ export default function AvalonGamePage() {
   const handleMissionVote = async (success: boolean) => {
     try {
       await submitMissionVote(roomId, pid, success)
+    } catch (err) {
+      console.error(err)
+      alert((err as Error).message)
+    }
+  }
+
+  const handleAssassinate = async () => {
+    if (!game || role.id !== 'assassin') return
+    if (game.phase !== 'assassination') return
+    if (assassinationTarget == null) {
+      alert('請先選擇一名玩家作為刺殺目標')
+      return
+    }
+
+    try {
+      await submitAssassination(roomId, pid, assassinationTarget)
     } catch (err) {
       console.error(err)
       alert((err as Error).message)
@@ -359,6 +377,7 @@ export default function AvalonGamePage() {
                   {game.phase === 'leader_select' && '隊長選人'}
                   {game.phase === 'team_vote' && '全體投票'}
                   {game.phase === 'mission' && '任務執行'}
+                  {game.phase === 'assassination' && '刺殺階段'}
                   {game.phase === 'round_result' && '回合結果'}
                 </span>
               </div>
@@ -549,6 +568,48 @@ export default function AvalonGamePage() {
                   目前已投出任務結果的玩家：{game.missionVotes?.length ?? 0} /{' '}
                   {serverTeamSeats.length}。
                 </div>
+              </div>
+            )}
+
+            {/* 刺殺階段 */}
+            {game.phase === 'assassination' && (
+              <div className="space-y-3">
+                {role.id === 'assassin' ? (
+                  <>
+                    <div className="text-xs sm:text-sm text-amber-100/90">
+                      你是本局的刺客，請選擇你認為是「梅林」的玩家並執行刺殺：
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {game.players.map((p) => (
+                        <button
+                          key={p.seat}
+                          type="button"
+                          onClick={() => setAssassinationTarget(p.seat)}
+                          className={`px-3 py-1 rounded-full text-xs sm:text-sm border transition-colors ${
+                            assassinationTarget === p.seat
+                              ? 'bg-rose-700/90 border-rose-400 text-amber-50 shadow-[0_0_12px_rgba(248,113,113,0.7)]'
+                              : 'bg-slate-900/80 border-slate-600 text-amber-100 hover:border-rose-400'
+                          }`}
+                        >
+                          玩家 {p.seat}
+                          {p.seat === myPlayer.seat && '（你）'}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex justify-end">
+                      <button
+                        onClick={handleAssassinate}
+                        className="mt-1 px-3 py-1.5 rounded-lg bg-rose-700 hover:bg-rose-600 text-[11px] sm:text-xs font-semibold text-amber-50 shadow-md"
+                      >
+                        確認刺殺
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-xs sm:text-sm text-amber-100/90">
+                    正在進入刺殺階段，請等待刺客決定要刺殺的目標。
+                  </div>
+                )}
               </div>
             )}
 
