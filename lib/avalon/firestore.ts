@@ -23,7 +23,13 @@ import type {
   AvalonMissionVote,
   AvalonTeamVote,
 } from '@/types/avalon'
-import { assignRoles, assignSpecificRoles, AVALON_ROLES, ROLE_PRESETS_BY_PLAYER_COUNT } from './constants'
+import {
+  assignRoles,
+  assignSpecificRoles,
+  AVALON_ROLES,
+  ROLE_PRESETS_BY_PLAYER_COUNT,
+  type AvalonRoleId,
+} from './constants'
 
 const COLLECTION_NAME = 'avalon_games'
 
