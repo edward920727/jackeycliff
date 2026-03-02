@@ -153,46 +153,58 @@ export default function AvalonRoomPage() {
   const participants = game.participants || []
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-4 sm:p-6">
+    <div
+      className="min-h-screen bg-black/70 p-4 sm:p-6"
+      style={{
+        backgroundImage: "url('/avalon-bg.jpg')",
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+      }}
+    >
       <div className="max-w-5xl mx-auto">
         <div className="flex items-center justify-between gap-2 mb-4">
           <button
             onClick={() => router.push('/avalon')}
-            className="px-3 sm:px-4 py-1.5 sm:py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors text-xs sm:text-sm font-semibold text-slate-200"
+            className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-b from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 rounded-lg transition-colors text-xs sm:text-sm font-semibold text-amber-100 border border-yellow-900/60 shadow-md"
           >
             ← 返回阿瓦隆大廳
           </button>
 
           <div className="text-right">
-            <div className="text-[10px] sm:text-xs text-slate-400">房間代碼</div>
-            <div className="font-mono text-sm sm:text-lg text-slate-100">{roomId}</div>
+            <div className="text-[10px] sm:text-xs text-amber-300/80 tracking-wide">
+              房間代碼
+            </div>
+            <div className="font-mono text-sm sm:text-lg text-amber-100 drop-shadow-[0_0_10px_rgba(0,0,0,0.7)]">
+              {roomId}
+            </div>
           </div>
         </div>
 
-        <div className="bg-slate-900/90 border border-slate-700 rounded-2xl shadow-2xl p-5 sm:p-7 mb-5 relative overflow-hidden">
-          <div className="pointer-events-none absolute inset-0 opacity-40 mix-blend-screen">
-            <div className="absolute -right-24 -top-24 w-64 h-64 bg-emerald-500/20 rounded-full blur-3xl" />
-            <div className="absolute -left-24 -bottom-24 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl" />
+        <div className="bg-gradient-to-b from-amber-100/95 via-amber-50/95 to-amber-100/90 border-[3px] border-yellow-900/80 rounded-[1.75rem] shadow-[0_22px_70px_rgba(0,0,0,0.9)] p-5 sm:p-7 mb-5 relative overflow-hidden">
+          <div className="pointer-events-none absolute inset-0 opacity-40">
+            <div className="absolute -right-24 -top-24 w-64 h-64 bg-[radial-gradient(circle_at_center,_rgba(15,23,42,0.5),_transparent_70%)]" />
+            <div className="absolute -left-24 -bottom-24 w-64 h-64 bg-[radial-gradient(circle_at_center,_rgba(148,91,40,0.5),_transparent_70%)]" />
           </div>
 
           <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-emerald-300 via-cyan-300 to-indigo-300 bg-clip-text text-transparent">
+              <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-yellow-900 via-amber-800 to-amber-600 bg-clip-text text-transparent tracking-wide">
                 阿瓦隆房間大廳
               </h1>
-              <p className="text-xs sm:text-sm text-slate-400 mt-1">
+              <p className="text-xs sm:text-sm text-stone-700 mt-1">
                 等待所有玩家加入後，由房主按下「開始遊戲」，大家會自動進入身分畫面。
               </p>
             </div>
 
-            <div className="text-right text-xs sm:text-sm text-slate-300">
+            <div className="text-right text-xs sm:text-sm text-stone-700">
               <div className="mb-1">
                 目前人數：
-                <span className="font-semibold text-emerald-300 ml-1">
+                <span className="font-semibold text-emerald-700 ml-1">
                   {participants.length} 人
                 </span>
               </div>
-              <div className="text-[11px] sm:text-xs text-slate-500">
+              <div className="text-[11px] sm:text-xs text-stone-500">
                 需要 5–10 人才能開始遊戲
               </div>
             </div>
@@ -200,30 +212,30 @@ export default function AvalonRoomPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="md:col-span-2 bg-slate-900/80 border border-slate-700 rounded-2xl p-4 sm:p-5">
-            <h2 className="text-sm sm:text-base font-semibold text-slate-100 mb-3">
+          <div className="md:col-span-2 bg-gradient-to-b from-amber-50/95 via-amber-100/95 to-amber-200/90 border border-yellow-900/70 rounded-2xl p-4 sm:p-5 shadow-md">
+            <h2 className="text-sm sm:text-base font-semibold text-yellow-900 mb-3 tracking-wide">
               玩家列表
             </h2>
             {participants.length === 0 ? (
-              <p className="text-xs sm:text-sm text-slate-500">尚無玩家加入。</p>
+              <p className="text-xs sm:text-sm text-stone-500">尚無玩家加入。</p>
             ) : (
               <div className="space-y-2">
                 {participants.map((p) => (
                   <div
                     key={p.id}
-                    className={`flex items-center justify-between px-3 py-2 rounded-lg bg-slate-800/80 border ${
-                      p.id === pid ? 'border-emerald-500/60' : 'border-slate-700'
+                    className={`flex items-center justify-between px-3 py-2 rounded-lg bg-amber-50/60 border ${
+                      p.id === pid ? 'border-emerald-600/70 shadow-[0_0_0_1px_rgba(22,163,74,0.3)]' : 'border-amber-300'
                     }`}
                   >
                     <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-sm text-slate-100 truncate">{p.name}</span>
+                      <span className="text-sm text-stone-900 truncate">{p.name}</span>
                       {p.id === pid && (
-                        <span className="text-[10px] sm:text-xs text-emerald-300 flex-shrink-0">
+                        <span className="text-[10px] sm:text-xs text-emerald-700 flex-shrink-0">
                           （你）
                         </span>
                       )}
                     </div>
-                    <div className="text-[11px] sm:text-xs text-slate-400 flex-shrink-0">
+                    <div className="text-[11px] sm:text-xs text-stone-600 flex-shrink-0">
                       {p.isHost ? '房主' : '玩家'}
                     </div>
                   </div>
@@ -232,17 +244,19 @@ export default function AvalonRoomPage() {
             )}
           </div>
 
-          <div className="bg-slate-900/80 border border-slate-700 rounded-2xl p-4 sm:p-5 flex flex-col justify-between">
+          <div className="bg-gradient-to-b from-amber-50/95 via-amber-100/95 to-amber-200/90 border border-yellow-900/70 rounded-2xl p-4 sm:p-5 flex flex-col justify-between shadow-md">
             <div className="mb-3">
-              <h2 className="text-sm sm:text-base font-semibold text-slate-100 mb-2">
+              <h2 className="text-sm sm:text-base font-semibold text-yellow-900 mb-2 tracking-wide">
                 房間資訊
               </h2>
-              <p className="text-[11px] sm:text-xs text-slate-400 mb-2">
+              <p className="text-[11px] sm:text-xs text-stone-600 mb-2">
                 請將房間代碼分享給所有玩家，讓他們在「阿瓦隆大廳」輸入代碼加入。
               </p>
-              <div className="bg-slate-800/80 border border-slate-700 rounded-lg px-3 py-2">
-                <div className="text-[11px] sm:text-xs text-slate-400 mb-1">房間代碼</div>
-                <div className="font-mono text-sm sm:text-base text-slate-100">{roomId}</div>
+              <div className="bg-amber-50/70 border border-amber-300 rounded-lg px-3 py-2 shadow-inner">
+                <div className="text-[11px] sm:text-xs text-stone-600 mb-1">房間代碼</div>
+                <div className="font-mono text-sm sm:text-base text-stone-900 tracking-[0.18em]">
+                  {roomId}
+                </div>
               </div>
             </div>
 
@@ -250,7 +264,7 @@ export default function AvalonRoomPage() {
               <button
                 onClick={handleStartGame}
                 disabled={isStarting || participants.length < 5 || participants.length > 10}
-                className="mt-2 w-full px-3 sm:px-4 py-2.5 rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 disabled:from-slate-700 disabled:to-slate-700 disabled:cursor-not-allowed text-white font-semibold text-sm sm:text-base shadow-lg transition-all"
+                className="mt-2 w-full px-3 sm:px-4 py-2.5 rounded-lg bg-gradient-to-b from-sky-900 via-sky-800 to-sky-700 hover:from-sky-800 hover:to-sky-600 disabled:from-stone-400 disabled:via-stone-400 disabled:to-stone-400 disabled:cursor-not-allowed text-amber-50 font-semibold text-sm sm:text-base shadow-[0_10px_26px_rgba(15,23,42,0.9)] border border-yellow-500/70 transition-all"
               >
                 {isStarting
                   ? '開始中...'
@@ -259,7 +273,7 @@ export default function AvalonRoomPage() {
                   : '開始遊戲'}
               </button>
             ) : (
-              <div className="mt-2 text-[11px] sm:text-xs text-slate-400">
+              <div className="mt-2 text-[11px] sm:text-xs text-stone-600">
                 等待房主開始遊戲，開始後會自動進入身分畫面。
               </div>
             )}

@@ -6,7 +6,15 @@ export default function GameHub() {
   const router = useRouter()
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+    <div
+      className="min-h-screen flex items-center justify-center p-4 bg-black/70"
+      style={{
+        backgroundImage: "url('/lobby-bg.jpg')",
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+      }}
+    >
       <div className="max-w-3xl w-full mx-auto">
         <h1 className="text-3xl sm:text-4xl font-bold text-center mb-2 bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent">
           線上桌遊大廳
@@ -17,7 +25,7 @@ export default function GameHub() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* 機密代號 */}
-          <button
+              <button
             onClick={() => router.push('/codenames')}
             className="group bg-gray-900/80 border border-gray-700 rounded-2xl p-4 sm:p-6 text-left hover:border-blue-500 hover:shadow-lg hover:shadow-blue-500/20 transition-all"
           >
@@ -33,10 +41,10 @@ export default function GameHub() {
             <p className="text-xs text-gray-500">
               4–8 人適合｜支援自訂題庫、18 禁題庫
             </p>
-          </button>
+              </button>
 
           {/* 阿瓦隆 */}
-          <button
+              <button
             onClick={() => router.push('/avalon')}
             className="group bg-gray-900/80 border border-gray-700 rounded-2xl p-4 sm:p-6 text-left hover:border-emerald-500 hover:shadow-lg hover:shadow-emerald-500/20 transition-all"
           >
@@ -52,7 +60,7 @@ export default function GameHub() {
             <p className="text-xs text-gray-500">
               5–10 人適合｜支援線上房間、身分發牌、任務紀錄
             </p>
-          </button>
+            </button>
         </div>
       </div>
     </div>
