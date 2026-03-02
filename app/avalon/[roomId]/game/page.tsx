@@ -24,6 +24,9 @@ export default function AvalonGamePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [localTeamSeats, setLocalTeamSeats] = useState<number[]>([])
+  const [teamVoteChoice, setTeamVoteChoice] = useState<'approve' | 'reject' | null>(
+    null
+  )
   const [assassinationTarget, setAssassinationTarget] = useState<number | null>(null)
 
   const pid = searchParams.get('pid') || ''
@@ -156,6 +159,7 @@ export default function AvalonGamePage() {
   }
 
   const handleTeamVote = async (approve: boolean) => {
+    setTeamVoteChoice(approve ? 'approve' : 'reject')
     try {
       await submitTeamVote(roomId, pid, approve)
     } catch (err) {
@@ -502,13 +506,21 @@ export default function AvalonGamePage() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleTeamVote(true)}
-                    className="flex-1 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs sm:text-sm font-semibold text-amber-50 shadow-md"
+                    className={`flex-1 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold shadow-md transition-colors ${
+                      teamVoteChoice === 'approve'
+                        ? 'bg-emerald-500 text-amber-50 border border-emerald-300'
+                        : 'bg-emerald-600 hover:bg-emerald-500 text-amber-50'
+                    }`}
                   >
                     贊成
                   </button>
                   <button
                     onClick={() => handleTeamVote(false)}
-                    className="flex-1 px-3 py-2 rounded-lg bg-rose-700 hover:bg-rose-600 text-xs sm:text-sm font-semibold text-amber-50 shadow-md"
+                    className={`flex-1 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold shadow-md transition-colors ${
+                      teamVoteChoice === 'reject'
+                        ? 'bg-rose-600 text-amber-50 border border-rose-300'
+                        : 'bg-rose-700 hover:bg-rose-600 text-amber-50'
+                    }`}
                   >
                     反對
                   </button>
