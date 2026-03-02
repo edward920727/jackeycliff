@@ -445,8 +445,8 @@ export async function getAllAvalonRooms(): Promise<AvalonGameData[]> {
   const snap = await getDocs(q)
 
   return snap.docs.map((docSnap) => ({
+    ...(docSnap.data() as Omit<AvalonGameData, 'room_id'>),
     room_id: docSnap.id,
-    ...docSnap.data(),
   })) as AvalonGameData[]
 }
 
@@ -463,8 +463,8 @@ export function subscribeToAllAvalonRooms(
     q,
     (snapshot) => {
       const rooms: AvalonGameData[] = snapshot.docs.map((docSnap) => ({
+        ...(docSnap.data() as Omit<AvalonGameData, 'room_id'>),
         room_id: docSnap.id,
-        ...(docSnap.data() as AvalonGameData),
       }))
       callback(rooms)
     },
@@ -482,4 +482,3 @@ export async function deleteAvalonRoom(roomId: string): Promise<void> {
   const gameRef = doc(db, COLLECTION_NAME, roomId)
   await deleteDoc(gameRef)
 }
-
