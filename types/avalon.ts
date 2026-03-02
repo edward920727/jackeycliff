@@ -47,6 +47,8 @@ export interface AvalonGameData {
   players: AvalonPlayer[]
   /** 正在房間大廳中的玩家（包含房主與一般玩家） */
   participants?: AvalonParticipant[]
+  /** 房主在開始遊戲前選擇要使用的角色（長度需等於玩家人數） */
+  selectedRoles?: AvalonRoleId[]
 
   /** ---- 遊戲進行相關狀態（開始遊戲後） ---- */
   /** 目前是第幾輪任務（1~5） */

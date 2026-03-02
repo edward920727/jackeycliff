@@ -23,7 +23,7 @@ import type {
   AvalonMissionVote,
   AvalonTeamVote,
 } from '@/types/avalon'
-import { assignRoles, AVALON_ROLES } from './constants'
+import { assignRoles, assignSpecificRoles, AVALON_ROLES, ROLE_PRESETS_BY_PLAYER_COUNT } from './constants'
 
 const COLLECTION_NAME = 'avalon_games'
 
@@ -150,7 +150,20 @@ export async function startAvalonGame(roomId: string): Promise<void> {
     throw new Error('阿瓦隆目前只支援 5～10 人，請確認大廳中的玩家人數')
   }
 
-  const assigned = assignRoles(playerCount)
+  let assignedRolesIds: AvalonRoleId[]
+
+  // 若房主有事先選擇角色，且數量正確，就使用自訂角色組合
+  if (data.selectedRoles && data.selectedRoles.length === playerCount) {
+    assignedRolesIds = data.selectedRoles
+  } else {
+    const preset = ROLE_PRESETS_BY_PLAYER_COUNT[playerCount]
+    if (!preset) {
+      throw new Error(`目前尚未支援的玩家人數：${playerCount}（只支援 5~10 人）`)
+    }
+    assignedRolesIds = preset
+  }
+
+  const assigned = assignSpecificRoles(assignedRolesIds)
 
   // 依照參與者順序分配座位與身分
   const players: AvalonPlayer[] = assigned.map(({ seat, roleId }, index) => {

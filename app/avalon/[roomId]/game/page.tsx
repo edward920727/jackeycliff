@@ -22,6 +22,7 @@ export default function AvalonGamePage() {
   const [game, setGame] = useState<AvalonGameData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [localTeamSeats, setLocalTeamSeats] = useState<number[]>([])
 
   const pid = searchParams.get('pid') || ''
 
@@ -180,25 +181,45 @@ export default function AvalonGamePage() {
 
   const currentRound = game.currentRound ?? 1
   const teamSize = getMissionTeamSize(game.player_count, currentRound)
-  const proposedTeamSeats = game.proposedTeamSeats || []
+  const serverTeamSeats = game.proposedTeamSeats || []
   const isLeader = game.leaderSeat === myPlayer.seat
-  const isOnProposedTeam = proposedTeamSeats.includes(myPlayer.seat)
+  const isOnProposedTeam = serverTeamSeats.includes(myPlayer.seat)
+
+  // 當進入隊長選人階段時，將本地選人狀態同步為目前伺服器上的隊伍（或清空）
+  useEffect(() => {
+    if (game.phase === 'leader_select') {
+      setLocalTeamSeats(serverTeamSeats)
+    } else {
+      setLocalTeamSeats([])
+    }
+  }, [game.phase, serverTeamSeats.join(',')])
 
   const handleSelectTeam = async (seat: number) => {
     if (!isLeader || game.phase !== 'leader_select') return
 
     let next: number[]
-    if (proposedTeamSeats.includes(seat)) {
-      next = proposedTeamSeats.filter((s) => s !== seat)
+    if (localTeamSeats.includes(seat)) {
+      next = localTeamSeats.filter((s) => s !== seat)
     } else {
-      next = [...proposedTeamSeats, seat]
+      next = [...localTeamSeats, seat]
     }
 
     // 前端先限制最多 teamSize 個人
     if (next.length > teamSize) return
 
+    setLocalTeamSeats(next)
+  }
+
+  const handleConfirmTeam = async () => {
+    if (!isLeader || game.phase !== 'leader_select') return
+
+    if (localTeamSeats.length !== teamSize) {
+      alert(`本輪需要選擇 ${teamSize} 人出任務`)
+      return
+    }
+
     try {
-      await selectMissionTeam(roomId, pid, next)
+      await selectMissionTeam(roomId, pid, localTeamSeats)
     } catch (err) {
       console.error(err)
       alert((err as Error).message)
@@ -391,7 +412,7 @@ export default function AvalonGamePage() {
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {game.players.map((p) => {
-                        const selected = proposedTeamSeats.includes(p.seat)
+                        const selected = localTeamSeats.includes(p.seat)
                         return (
                           <button
                             key={p.seat}
@@ -409,7 +430,15 @@ export default function AvalonGamePage() {
                       })}
                     </div>
                     <div className="text-[11px] sm:text-xs text-amber-200/80">
-                      目前已選：{proposedTeamSeats.length} / {teamSize} 人。
+                      目前已選：{localTeamSeats.length} / {teamSize} 人。
+                    </div>
+                    <div className="pt-1">
+                      <button
+                        onClick={handleConfirmTeam}
+                        className="mt-1 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-[11px] sm:text-xs font-semibold text-amber-50 shadow-md"
+                      >
+                        送出本輪隊伍
+                      </button>
                     </div>
                   </>
                 ) : (
@@ -428,7 +457,7 @@ export default function AvalonGamePage() {
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {game.players.map((p) => {
-                    if (!proposedTeamSeats.includes(p.seat)) return null
+                    if (!serverTeamSeats.includes(p.seat)) return null
                     return (
                       <span
                         key={p.seat}
@@ -471,7 +500,7 @@ export default function AvalonGamePage() {
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {game.players.map((p) => {
-                    if (!proposedTeamSeats.includes(p.seat)) return null
+                    if (!serverTeamSeats.includes(p.seat)) return null
                     return (
                       <span
                         key={p.seat}
@@ -512,7 +541,7 @@ export default function AvalonGamePage() {
 
                 <div className="text-[11px] sm:text-xs text-amber-200/80">
                   目前已投出任務結果的玩家：{game.missionVotes?.length ?? 0} /{' '}
-                  {proposedTeamSeats.length}。
+                  {serverTeamSeats.length}。
                 </div>
               </div>
             )}

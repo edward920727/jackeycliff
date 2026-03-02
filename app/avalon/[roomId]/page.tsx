@@ -10,7 +10,9 @@ import {
   leaveAvalonRoom,
   startAvalonGame,
   subscribeToAvalonGame,
+  updateAvalonGame,
 } from '@/lib/avalon/firestore'
+import { AVALON_ROLES, ROLE_PRESETS_BY_PLAYER_COUNT, type AvalonRoleId } from '@/lib/avalon/constants'
 
 export default function AvalonRoomPage() {
   const params = useParams()
@@ -22,6 +24,7 @@ export default function AvalonRoomPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isStarting, setIsStarting] = useState(false)
+  const [selectedRoles, setSelectedRoles] = useState<AvalonRoleId[]>([])
 
   const role = (searchParams.get('role') || 'player') as 'host' | 'player'
   const name = searchParams.get('name') || '玩家'
@@ -90,6 +93,25 @@ export default function AvalonRoomPage() {
     }
   }, [roomId, pid, name, isHost])
 
+  // 根據當前人數 / 遊戲資料，預設或同步本局角色組合
+  useEffect(() => {
+    if (!game) return
+    const participants = game.participants || []
+    const count = participants.length
+    if (count < 5 || count > 10) {
+      setSelectedRoles([])
+      return
+    }
+
+    if (game.selectedRoles && game.selectedRoles.length === count) {
+      setSelectedRoles(game.selectedRoles)
+      return
+    }
+
+    const preset = ROLE_PRESETS_BY_PLAYER_COUNT[count]
+    setSelectedRoles(preset ? [...preset] : [])
+  }, [game])
+
   // 狀態變更：當遊戲開始時，自動導向遊戲畫面
   useEffect(() => {
     if (!game) return
@@ -97,6 +119,21 @@ export default function AvalonRoomPage() {
       router.push(`/avalon/${roomId}/game?pid=${encodeURIComponent(pid)}`)
     }
   }, [game, roomId, router, pid])
+
+  const toggleRole = (roleId: AvalonRoleId, playerCount: number) => {
+    if (!isHost) return
+    setSelectedRoles((prev) => {
+      const exists = prev.includes(roleId)
+      if (exists) {
+        return prev.filter((id) => id !== roleId)
+      }
+      if (prev.length >= playerCount) {
+        alert(`本局玩家人數為 ${playerCount} 人，最多只能選擇 ${playerCount} 個角色`)
+        return prev
+      }
+      return [...prev, roleId]
+    })
+  }
 
   const handleStartGame = async () => {
     if (!game) return
@@ -109,8 +146,16 @@ export default function AvalonRoomPage() {
       return
     }
 
+    const playerCount = game.participants.length
+    if (selectedRoles.length !== playerCount) {
+      alert(`目前玩家 ${playerCount} 人，需選擇 ${playerCount} 個角色（已選 ${selectedRoles.length} 個）`)
+      return
+    }
+
     try {
       setIsStarting(true)
+      // 先儲存本局選擇的角色組合
+      await updateAvalonGame(roomId, { selectedRoles })
       await startAvalonGame(roomId)
     } catch (err: any) {
       console.error(err)
@@ -244,8 +289,8 @@ export default function AvalonRoomPage() {
             )}
           </div>
 
-          <div className="bg-gradient-to-b from-amber-50/95 via-amber-100/95 to-amber-200/90 border border-yellow-900/70 rounded-2xl p-4 sm:p-5 flex flex-col justify-between shadow-md">
-            <div className="mb-3">
+          <div className="bg-gradient-to-b from-amber-50/95 via-amber-100/95 to-amber-200/90 border border-yellow-900/70 rounded-2xl p-4 sm:p-5 flex flex-col gap-4 shadow-md">
+            <div>
               <h2 className="text-sm sm:text-base font-semibold text-yellow-900 mb-2 tracking-wide">
                 房間資訊
               </h2>
@@ -260,23 +305,67 @@ export default function AvalonRoomPage() {
               </div>
             </div>
 
-            {isHost ? (
-              <button
-                onClick={handleStartGame}
-                disabled={isStarting || participants.length < 5 || participants.length > 10}
-                className="mt-2 w-full px-3 sm:px-4 py-2.5 rounded-lg bg-gradient-to-b from-sky-900 via-sky-800 to-sky-700 hover:from-sky-800 hover:to-sky-600 disabled:from-stone-400 disabled:via-stone-400 disabled:to-stone-400 disabled:cursor-not-allowed text-amber-50 font-semibold text-sm sm:text-base shadow-[0_10px_26px_rgba(15,23,42,0.9)] border border-yellow-500/70 transition-all"
-              >
-                {isStarting
-                  ? '開始中...'
-                  : participants.length < 5 || participants.length > 10
-                  ? '需要 5–10 位玩家才能開始'
-                  : '開始遊戲'}
-              </button>
-            ) : (
-              <div className="mt-2 text-[11px] sm:text-xs text-stone-600">
-                等待房主開始遊戲，開始後會自動進入身分畫面。
+            <div>
+              <h2 className="text-sm sm:text-base font-semibold text-yellow-900 mb-2 tracking-wide">
+                本局使用角色
+              </h2>
+              <p className="text-[11px] sm:text-xs text-stone-600 mb-2">
+                房主可以在這裡選擇本局要使用的角色，選擇人數需與玩家人數相同。
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {Object.values(AVALON_ROLES).map((role) => {
+                  const checked = selectedRoles.includes(role.id)
+                  const isGood = role.faction === 'good'
+                  return (
+                    <button
+                      key={role.id}
+                      type="button"
+                      disabled={!isHost}
+                      onClick={() => toggleRole(role.id, participants.length)}
+                      className={`px-2.5 py-1 rounded-full text-[11px] sm:text-xs border transition-colors ${
+                        checked
+                          ? isGood
+                            ? 'bg-emerald-600/90 border-emerald-400 text-amber-50 shadow-[0_0_10px_rgba(16,185,129,0.6)]'
+                            : 'bg-rose-700/90 border-rose-400 text-amber-50 shadow-[0_0_10px_rgba(248,113,113,0.6)]'
+                          : 'bg-amber-50/70 border-amber-300 text-stone-800 hover:border-emerald-400'
+                      } ${!isHost ? 'opacity-70 cursor-default' : ''}`}
+                    >
+                      {role.name}
+                    </button>
+                  )
+                })}
               </div>
-            )}
+              <div className="mt-1 text-[11px] sm:text-xs text-stone-600">
+                目前已選：{selectedRoles.length} / {participants.length} 個角色
+              </div>
+            </div>
+
+            <div className="mt-auto">
+              {isHost ? (
+                <button
+                  onClick={handleStartGame}
+                  disabled={
+                    isStarting ||
+                    participants.length < 5 ||
+                    participants.length > 10 ||
+                    selectedRoles.length !== participants.length
+                  }
+                  className="mt-2 w-full px-3 sm:px-4 py-2.5 rounded-lg bg-gradient-to-b from-sky-900 via-sky-800 to-sky-700 hover:from-sky-800 hover:to-sky-600 disabled:from-stone-400 disabled:via-stone-400 disabled:to-stone-400 disabled:cursor-not-allowed text-amber-50 font-semibold text-sm sm:text-base shadow-[0_10px_26px_rgba(15,23,42,0.9)] border border-yellow-500/70 transition-all"
+                >
+                  {isStarting
+                    ? '開始中...'
+                    : participants.length < 5 || participants.length > 10
+                    ? '需要 5–10 位玩家才能開始'
+                    : selectedRoles.length !== participants.length
+                    ? `請選滿 ${participants.length} 個角色`
+                    : '開始遊戲'}
+                </button>
+              ) : (
+                <div className="mt-2 text-[11px] sm:text-xs text-stone-600">
+                  等待房主開始遊戲，開始後會自動進入身分畫面。
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

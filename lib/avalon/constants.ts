@@ -135,7 +135,7 @@ export interface AssignedRole {
 }
 
 /**
- * 根據玩家人數，隨機分配阿瓦隆身分
+ * 根據玩家人數，使用預設角色組合隨機分配阿瓦隆身分
  */
 export function assignRoles(playerCount: number): AssignedRole[] {
   const preset = ROLE_PRESETS_BY_PLAYER_COUNT[playerCount]
@@ -158,3 +158,24 @@ export function assignRoles(playerCount: number): AssignedRole[] {
   }))
 }
 
+/**
+ * 由房主自訂一組角色清單時，根據該清單隨機分配身分
+ */
+export function assignSpecificRoles(roleIds: AvalonRoleId[]): AssignedRole[] {
+  if (roleIds.length === 0) {
+    throw new Error('至少需要一個角色才能分配身分')
+  }
+
+  const roles = [...roleIds]
+
+  // Fisher–Yates 洗牌
+  for (let i = roles.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[roles[i], roles[j]] = [roles[j], roles[i]]
+  }
+
+  return roles.map((roleId, index) => ({
+    seat: index + 1,
+    roleId,
+  }))
+}
