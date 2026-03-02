@@ -12,6 +12,7 @@ import {
   submitMissionVote,
   submitTeamVote,
   submitAssassination,
+  resetAvalonGameToLobby,
 } from '@/lib/avalon/firestore'
 
 export default function AvalonGamePage() {
@@ -64,6 +65,24 @@ export default function AvalonGamePage() {
       unsubscribe()
     }
   }, [roomId])
+
+  // 若遊戲被房主重置回大廳，所有在遊戲畫面的玩家自動回到房間大廳，不用重新輸入房號
+  useEffect(() => {
+    if (!game || !pid) return
+    if (game.status !== 'lobby') return
+
+    const participants = game.participants || []
+    const me = participants.find((p) => p.id === pid)
+    const isHost = me?.isHost ?? false
+    const name = me?.name || '玩家'
+
+    const params = new URLSearchParams({
+      role: isHost ? 'host' : 'player',
+      name,
+      pid,
+    })
+    router.push(`/avalon/${roomId}?${params.toString()}`)
+  }, [game?.status, game?.participants, roomId, pid, router])
 
   const renderVisibleForPlayer = (player: AvalonPlayer, allPlayers: AvalonPlayer[]) => {
     const roleDef = AVALON_ROLES[player.roleId]
@@ -273,6 +292,10 @@ export default function AvalonGamePage() {
   const teamSize = getMissionTeamSize(game.player_count, currentRound)
   const isLeader = game.leaderSeat === myPlayer.seat
   const isOnProposedTeam = serverTeamSeats.includes(myPlayer.seat)
+  const isHostParticipant =
+    game.participants?.some((p) => p.id === pid && p.isHost) ?? false
+  const myParticipantName =
+    game.participants?.find((p) => p.id === pid)?.name ?? myPlayer.name
 
   return (
     <div
@@ -640,6 +663,30 @@ export default function AvalonGamePage() {
                 >
                   {game.winnerFaction === 'good' ? '好人陣營獲勝' : '壞人陣營獲勝'}
                 </span>
+                {isHostParticipant && (
+                  <div className="mt-3 flex flex-col sm:flex-row gap-2 justify-center">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await resetAvalonGameToLobby(roomId)
+                          const params = new URLSearchParams({
+                            role: 'host',
+                            name: myParticipantName,
+                            pid,
+                          })
+                          router.push(`/avalon/${roomId}?${params.toString()}`)
+                        } catch (err) {
+                          console.error(err)
+                          alert((err as Error).message)
+                        }
+                      }}
+                      className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg bg-gradient-to-b from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 text-amber-100 text-[11px] sm:text-xs font-semibold border border-yellow-900/60 shadow-md"
+                    >
+                      回到房間重新配置並再來一局
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>

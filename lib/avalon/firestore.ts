@@ -490,6 +490,39 @@ export async function submitAssassination(
   })
 }
 
+/**
+ * 遊戲結束後，將房間重置回大廳狀態，方便房主調整配置再開一局
+ */
+export async function resetAvalonGameToLobby(roomId: string): Promise<void> {
+  const gameRef = doc(db, COLLECTION_NAME, roomId)
+  const snap = await getDoc(gameRef)
+  if (!snap.exists()) {
+    throw new Error('房間不存在')
+  }
+
+  const data = snap.data() as AvalonGameData
+  if (data.status !== 'finished') {
+    throw new Error('只有在遊戲結束後才能重新開局')
+  }
+
+  await updateDoc(gameRef, {
+    status: 'lobby',
+    player_count: 0,
+    players: [],
+    currentRound: undefined as any,
+    currentProposal: undefined as any,
+    phase: 'leader_select',
+    leaderSeat: undefined as any,
+    proposedTeamSeats: [],
+    votes: [],
+    missionVotes: [],
+    missionResults: [],
+    winnerFaction: undefined as any,
+    assassinationTargetSeat: undefined as any,
+    updated_at: new Date(),
+  })
+}
+
 export function subscribeToAvalonGame(
   roomId: string,
   callback: (game: AvalonGameData | null) => void
