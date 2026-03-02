@@ -124,14 +124,14 @@ export default function AvalonGamePage() {
     )
   }
 
+  const myPlayer: AvalonPlayer | undefined = useMemo(() => {
+    if (!game || !pid) return undefined
+    return game.players.find((p) => p.participantId === pid)
+  }, [game, pid])
+
   if (!game) {
     return null
   }
-
-  const myPlayer: AvalonPlayer | undefined = useMemo(() => {
-    if (!pid) return undefined
-    return game.players.find((p) => p.participantId === pid)
-  }, [game.players, pid])
 
   if (game.status !== 'started') {
     return (

@@ -12,6 +12,7 @@ import {
   getDocs,
   arrayUnion,
   arrayRemove,
+  deleteDoc,
 } from 'firebase/firestore'
 import { db } from '../firebase'
 import type {
@@ -447,5 +448,38 @@ export async function getAllAvalonRooms(): Promise<AvalonGameData[]> {
     room_id: docSnap.id,
     ...docSnap.data(),
   })) as AvalonGameData[]
+}
+
+/**
+ * 訂閱所有阿瓦隆房間列表（房間列表頁面使用）
+ */
+export function subscribeToAllAvalonRooms(
+  callback: (rooms: AvalonGameData[]) => void
+): Unsubscribe {
+  const gamesRef = collection(db, COLLECTION_NAME)
+  const q = query(gamesRef, orderBy('created_at', 'desc'))
+
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const rooms: AvalonGameData[] = snapshot.docs.map((docSnap) => ({
+        room_id: docSnap.id,
+        ...(docSnap.data() as AvalonGameData),
+      }))
+      callback(rooms)
+    },
+    (error) => {
+      console.error('Error subscribing to avalon rooms:', error)
+      callback([])
+    }
+  )
+}
+
+/**
+ * 刪除單一阿瓦隆房間
+ */
+export async function deleteAvalonRoom(roomId: string): Promise<void> {
+  const gameRef = doc(db, COLLECTION_NAME, roomId)
+  await deleteDoc(gameRef)
 }
 

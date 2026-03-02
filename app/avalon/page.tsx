@@ -72,12 +72,20 @@ export default function AvalonLobby() {
         </div>
 
         <div className="relative z-10">
-          <button
-            onClick={() => router.push('/')}
-            className="mb-4 px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-b from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 rounded-lg transition-colors text-xs sm:text-sm font-semibold text-amber-100 border border-yellow-900/60 shadow-md"
-          >
-            ← 返回遊戲大廳
-          </button>
+          <div className="flex items-center justify-between gap-2 mb-4">
+            <button
+              onClick={() => router.push('/')}
+              className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-b from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 rounded-lg transition-colors text-xs sm:text-sm font-semibold text-amber-100 border border-yellow-900/60 shadow-md"
+            >
+              ← 返回遊戲大廳
+            </button>
+            <button
+              onClick={() => router.push('/avalon/rooms')}
+              className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-b from-slate-900/90 to-slate-800/90 hover:from-slate-800 hover:to-slate-700 rounded-lg transition-colors text-[11px] sm:text-xs font-semibold text-amber-100/90 border border-yellow-900/60 shadow-md"
+            >
+              查看阿瓦隆房間列表
+            </button>
+          </div>
 
           <div className="flex items-center gap-3 mb-4">
             <span className="text-3xl sm:text-4xl drop-shadow-[0_0_8px_rgba(0,0,0,0.6)]">🏰</span>
