@@ -80,6 +80,11 @@ export default function AvalonGamePage() {
       )
     }
 
+    const isPercival = player.roleId === 'percival'
+    const lineText = isPercival
+      ? '你知道他可能是「梅林」或「莫甘娜」之一'
+      : '你知道他是「邪惡陣營」的一員'
+
     // 只顯示「你看到哪些玩家」，不顯示他們的具體角色名稱
     return (
       <div className="space-y-1">
@@ -91,7 +96,7 @@ export default function AvalonGamePage() {
             <span className="px-2 py-0.5 rounded-full bg-slate-700 text-[10px] sm:text-xs">
               玩家 {vp.seat}
             </span>
-            <span className="text-slate-300">你知道他是「邪惡陣營」的一員</span>
+            <span className="text-slate-300">{lineText}</span>
           </div>
         ))}
       </div>
