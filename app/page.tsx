@@ -25,7 +25,7 @@ export default function GameHub() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
           {/* 機密代號 */}
-              <button
+          <button
             onClick={() => router.push('/codenames')}
             className="group bg-gray-900/80 border border-gray-700 rounded-2xl p-4 sm:p-6 text-left hover:border-blue-500 hover:shadow-lg hover:shadow-blue-500/20 transition-all"
           >
@@ -41,10 +41,29 @@ export default function GameHub() {
             <p className="text-xs text-gray-500">
               4–8 人適合｜支援自訂題庫、18 禁題庫
             </p>
-              </button>
+          </button>
+
+          {/* 誰是臥底 */}
+          <button
+            onClick={() => router.push('/undercover')}
+            className="group bg-gray-900/80 border border-gray-700 rounded-2xl p-4 sm:p-6 text-left hover:border-yellow-400 hover:shadow-lg hover:shadow-yellow-400/20 transition-all"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-xl font-bold text-white group-hover:text-yellow-300">
+                誰是臥底
+              </h2>
+              <span className="text-2xl">🕶️</span>
+            </div>
+            <p className="text-sm text-gray-300 mb-2">
+              大家拿到類似詞彙，透過描述和推理找出那個詞不一樣的臥底玩家。
+            </p>
+            <p className="text-xs text-gray-500">
+              3–10 人適合｜輕度推理、聊天破冰必備
+            </p>
+          </button>
 
           {/* 阿瓦隆 */}
-              <button
+          <button
             onClick={() => router.push('/avalon')}
             className="group bg-gray-900/80 border border-gray-700 rounded-2xl p-4 sm:p-6 text-left hover:border-emerald-500 hover:shadow-lg hover:shadow-emerald-500/20 transition-all"
           >
