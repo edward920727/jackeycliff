@@ -56,10 +56,16 @@ export default function UndercoverLobby() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-black/70">
-      <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-zinc-900" />
-
-      <div className="relative z-10 w-full max-w-2xl bg-slate-900/90 border border-slate-700/80 rounded-3xl shadow-[0_22px_70px_rgba(0,0,0,0.85)] p-6 sm:p-8 backdrop-blur-xl">
+    <div
+      className="min-h-screen flex items-center justify-center p-4 bg-black/70"
+      style={{
+        backgroundImage: "url('/undercover-bg.jpg')",
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+      }}
+    >
+      <div className="w-full max-w-2xl bg-slate-900/90 border border-slate-700/80 rounded-3xl shadow-[0_22px_70px_rgba(0,0,0,0.85)] p-6 sm:p-8 backdrop-blur-xl">
         <div className="flex items-center justify-between gap-2 mb-4">
           <button
             onClick={() => router.push('/')}

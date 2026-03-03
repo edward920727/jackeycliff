@@ -79,17 +79,21 @@ export default function UndercoverRoomPage() {
 
     return () => {
       if (unsub) unsub()
-      if (pid) {
-        leaveUndercoverRoom(roomId, pid).catch(() => {})
-      }
+      // 不在這裡離開房間，讓參與者資訊在整個遊戲期間都保留
+      // 真正離線時再另外處理即可
     }
   }, [roomId, pid, name, isHost])
 
-  // 若遊戲已經開始，直接導向遊戲畫面
+  // 若遊戲已經開始，直接導向遊戲畫面，並帶上身分與名稱方便還原
   useEffect(() => {
     if (!game || !pid) return
     if (game.status === 'playing') {
-      router.push(`/undercover/${roomId}/game?pid=${encodeURIComponent(pid)}`)
+      const params = new URLSearchParams({
+        pid,
+        role: isHost ? 'host' : 'player',
+        name,
+      })
+      router.push(`/undercover/${roomId}/game?${params.toString()}`)
     }
   }, [game?.status, roomId, pid, router])
 
@@ -149,10 +153,16 @@ export default function UndercoverRoomPage() {
   const participants = game.participants || []
 
   return (
-    <div className="min-h-screen bg-black/80 p-4 sm:p-6">
-      <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-zinc-900" />
-
-      <div className="relative z-10 max-w-4xl mx-auto">
+    <div
+      className="min-h-screen bg-black/70 p-4 sm:p-6"
+      style={{
+        backgroundImage: "url('/undercover-bg.jpg')",
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+      }}
+    >
+      <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between gap-2 mb-4">
           <button
             onClick={() => router.push('/undercover')}

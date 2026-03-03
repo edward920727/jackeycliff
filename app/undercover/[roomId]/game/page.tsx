@@ -22,6 +22,8 @@ export default function UndercoverGamePage() {
   const [selectedEliminationSeat, setSelectedEliminationSeat] = useState<number | null>(null)
 
   const pid = searchParams.get('pid') || ''
+  const urlRole = (searchParams.get('role') || 'player') as 'host' | 'player'
+  const urlName = searchParams.get('name') || ''
 
   useEffect(() => {
     async function init() {
@@ -83,7 +85,8 @@ export default function UndercoverGamePage() {
     return game.players.find((p) => p.participantId === pid)
   }, [game, pid])
 
-  const isHostParticipant = myParticipant?.isHost ?? false
+  const isHostParticipant =
+    myParticipant?.isHost ?? (game && urlRole === 'host' ? true : false)
 
   if (loading) {
     return (
@@ -137,7 +140,7 @@ export default function UndercoverGamePage() {
     )
   }
 
-  if (!pid || !myPlayer || !myParticipant) {
+  if (!pid || !myPlayer) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-black p-4">
         <div className="bg-slate-900/90 border border-slate-700/80 rounded-2xl shadow-[0_22px_70px_rgba(0,0,0,0.9)] p-6 sm:p-8 max-w-md w-full text-center">
@@ -157,6 +160,8 @@ export default function UndercoverGamePage() {
       </div>
     )
   }
+
+  const displayName = myParticipant?.name || urlName || myPlayer.name
 
   const words = game.words
   const isUndercover = myPlayer.role === 'undercover'
@@ -197,10 +202,16 @@ export default function UndercoverGamePage() {
   }
 
   return (
-    <div className="min-h-screen bg-black/80 p-4 sm:p-6">
-      <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-black" />
-
-      <div className="relative z-10 max-w-5xl mx-auto">
+    <div
+      className="min-h-screen bg-black/70 p-4 sm:p-6"
+      style={{
+        backgroundImage: "url('/undercover-bg.jpg')",
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+      }}
+    >
+      <div className="max-w-5xl mx-auto">
         <div className="flex items-center justify-between gap-2 mb-4">
           <button
             onClick={() => router.push(`/undercover/${roomId}`)}
@@ -251,7 +262,7 @@ export default function UndercoverGamePage() {
             <div className="flex items-center justify-between gap-2 mb-3">
               <div className="flex items-center gap-2">
                 <span className="px-2 py-0.5 rounded-full bg-slate-800 text-[11px] sm:text-xs text-yellow-100 border border-yellow-500/70">
-                  玩家 {myPlayer.seat}・{myParticipant.name}
+                  玩家 {myPlayer.seat}・{displayName}
                 </span>
                 <span
                   className={
