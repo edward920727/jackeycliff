@@ -23,6 +23,17 @@ export default function GameHub() {
           選擇一款遊戲開始玩吧！
         </p>
 
+        <div className="mb-6 flex justify-center">
+          <a
+            href="https://discord.com/channels/844122815506677821/1478421040953823414"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-full bg-indigo-600/90 px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-lg shadow-indigo-500/30 hover:bg-indigo-500"
+          >
+            加入語音（Discord）
+          </a>
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
           {/* 機密代號 */}
           <button
