@@ -19,6 +19,13 @@ export interface UndercoverPlayer {
   alive: boolean
 }
 
+export interface UndercoverEliminationVote {
+  /** 投票者座位 */
+  voterSeat: number
+  /** 被投票淘汰的目標座位 */
+  targetSeat: number
+}
+
 export interface UndercoverWords {
   civilian: string
   undercover: string
@@ -43,6 +50,9 @@ export interface UndercoverGameData {
 
   /** 被淘汰的座位號列表（方便顯示排序） */
   eliminatedSeats?: number[]
+
+  /** 本輪投票淘汰的票（存活玩家每人一票；下一輪/淘汰後會清空） */
+  votes?: UndercoverEliminationVote[]
 
   /** 若遊戲結束，記錄最後獲勝方（'civilian' | 'undercover'） */
   winnerRole?: Extract<UndercoverRole, 'civilian' | 'undercover'>

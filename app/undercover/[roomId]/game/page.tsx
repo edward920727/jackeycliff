@@ -7,6 +7,7 @@ import {
   getUndercoverGame,
   subscribeToUndercoverGame,
   eliminateUndercoverPlayer,
+  submitUndercoverVote,
   resetUndercoverGameToLobby,
 } from '@/lib/undercover/firestore'
 
@@ -20,6 +21,7 @@ export default function UndercoverGamePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedEliminationSeat, setSelectedEliminationSeat] = useState<number | null>(null)
+  const [myVoteSeat, setMyVoteSeat] = useState<number | null>(null)
 
   const pid = searchParams.get('pid') || ''
   const urlRole = (searchParams.get('role') || 'player') as 'host' | 'player'
@@ -87,6 +89,63 @@ export default function UndercoverGamePage() {
 
   const isHostParticipant =
     myParticipant?.isHost ?? (game && urlRole === 'host' ? true : false)
+
+  // ---- Derived data (hooks must be declared before any early returns) ----
+  const playersSafe = game?.players ?? []
+  const mySeatSafe = myPlayer?.seat ?? -1
+  const votes = game?.votes ?? []
+
+  const playerBySeat = useMemo(() => {
+    const map = new Map<number, UndercoverPlayer>()
+    for (const p of playersSafe) map.set(p.seat, p)
+    return map
+  }, [playersSafe])
+
+  const formatPlayer = (seat: number) => {
+    const p = playerBySeat.get(seat)
+    const name = p?.name?.trim()
+    return name ? `${name}（${seat}）` : `玩家 ${seat}`
+  }
+
+  const aliveSeatsSet = useMemo(
+    () => new Set(playersSafe.filter((p) => p.alive).map((p) => p.seat)),
+    [playersSafe]
+  )
+
+  const myExistingVote = useMemo(
+    () => votes.find((v) => v.voterSeat === mySeatSafe)?.targetSeat ?? null,
+    [votes, mySeatSafe]
+  )
+
+  useEffect(() => {
+    setMyVoteSeat(myExistingVote)
+  }, [myExistingVote])
+
+  const voteCountsByTargetSeat = useMemo(() => {
+    const map = new Map<number, number>()
+    for (const v of votes) {
+      if (!aliveSeatsSet.has(v.voterSeat)) continue
+      if (!aliveSeatsSet.has(v.targetSeat)) continue
+      map.set(v.targetSeat, (map.get(v.targetSeat) ?? 0) + 1)
+    }
+    return map
+  }, [votes, aliveSeatsSet])
+
+  const leadingVote = useMemo(() => {
+    let maxSeat: number | null = null
+    let maxCount = 0
+    let tie = false
+    for (const [seat, count] of voteCountsByTargetSeat.entries()) {
+      if (count > maxCount) {
+        maxSeat = seat
+        maxCount = count
+        tie = false
+      } else if (count === maxCount && count > 0) {
+        tie = true
+      }
+    }
+    return { seat: tie ? null : maxSeat, count: maxCount, tie }
+  }, [voteCountsByTargetSeat])
 
   if (loading) {
     return (
@@ -179,7 +238,7 @@ export default function UndercoverGamePage() {
       alert('請先選擇要淘汰的玩家')
       return
     }
-    if (!confirm(`確定要淘汰「玩家 ${selectedEliminationSeat}」嗎？`)) {
+    if (!confirm(`確定要淘汰「${formatPlayer(selectedEliminationSeat)}」嗎？`)) {
       return
     }
     try {
@@ -188,6 +247,16 @@ export default function UndercoverGamePage() {
     } catch (err: any) {
       console.error(err)
       alert(err.message || '淘汰玩家失敗')
+    }
+  }
+
+  const handleSubmitVote = async (targetSeat: number) => {
+    try {
+      await submitUndercoverVote(roomId, pid, targetSeat)
+      setMyVoteSeat(targetSeat)
+    } catch (err: any) {
+      console.error(err)
+      alert(err.message || '投票失敗')
     }
   }
 
@@ -325,7 +394,7 @@ export default function UndercoverGamePage() {
                             : 'bg-slate-800/80 border-slate-600 text-slate-100'
                         }`}
                       >
-                        玩家 {p.seat}
+                        {p.name || `玩家 ${p.seat}`}
                         {p.seat === myPlayer.seat && '（你）'}
                       </span>
                     ))}
@@ -344,7 +413,7 @@ export default function UndercoverGamePage() {
                         key={p.seat}
                         className="px-3 py-1 rounded-full text-xs sm:text-sm border bg-slate-800/80 border-slate-700 text-slate-400 line-through"
                       >
-                        玩家 {p.seat}
+                        {p.name || `玩家 ${p.seat}`}
                       </span>
                     ))}
                   </div>
@@ -366,7 +435,7 @@ export default function UndercoverGamePage() {
             {isHostParticipant && game.status === 'playing' && (
               <div className="mt-1">
                 <div className="text-[11px] sm:text-xs text-slate-300 mb-1.5">
-                  房主操作：選擇本輪被投票淘汰的玩家。
+                  房主操作：選擇本輪被投票淘汰的玩家（建議依下方票數領先者）。
                 </div>
                 <div className="flex flex-wrap gap-2 mb-2">
                   {alivePlayers.map((p) => (
@@ -380,7 +449,7 @@ export default function UndercoverGamePage() {
                           : 'bg-slate-800/80 border-slate-600 text-slate-100 hover:border-rose-400'
                       }`}
                     >
-                      玩家 {p.seat}
+                      {p.name || `玩家 ${p.seat}`}
                       {p.seat === myPlayer.seat && '（你）'}
                     </button>
                   ))}
@@ -393,6 +462,66 @@ export default function UndercoverGamePage() {
                 >
                   確認淘汰選中的玩家
                 </button>
+              </div>
+            )}
+
+            {game.status === 'playing' && (
+              <div className="mt-1 border-t border-slate-700/80 pt-3">
+                <div className="text-[11px] sm:text-xs text-slate-300 mb-1.5">
+                  本輪投票：所有存活玩家都可以投票（每人一票，可改票）。
+                </div>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {alivePlayers
+                    .filter((p) => p.seat !== myPlayer.seat)
+                    .map((p) => {
+                      const selected = myVoteSeat === p.seat
+                      return (
+                        <button
+                          key={p.seat}
+                          type="button"
+                          onClick={() => handleSubmitVote(p.seat)}
+                          className={`px-3 py-1 rounded-full text-xs sm:text-sm border transition-colors ${
+                            selected
+                              ? 'bg-yellow-500/20 border-yellow-400 text-yellow-200 shadow-[0_0_12px_rgba(250,204,21,0.35)]'
+                              : 'bg-slate-800/80 border-slate-600 text-slate-100 hover:border-yellow-400'
+                          }`}
+                        >
+                          投 {p.name || `玩家 ${p.seat}`}
+                        </button>
+                      )
+                    })}
+                </div>
+
+                <div className="text-[11px] sm:text-xs text-slate-300 mb-1">目前票數：</div>
+                <div className="space-y-1">
+                  {alivePlayers
+                    .slice()
+                    .sort((a, b) => a.seat - b.seat)
+                    .map((p) => {
+                      const count = voteCountsByTargetSeat.get(p.seat) ?? 0
+                      return (
+                        <div key={p.seat} className="flex items-center justify-between gap-2">
+                          <div className="text-[11px] sm:text-xs text-slate-200 truncate">
+                            {p.name || `玩家 ${p.seat}`}
+                          </div>
+                          <div className="text-[11px] sm:text-xs text-yellow-200 font-semibold">
+                            {count} 票
+                          </div>
+                        </div>
+                      )
+                    })}
+                </div>
+
+                {leadingVote.count > 0 && (
+                  <div className="mt-2 text-[11px] sm:text-xs text-slate-200">
+                    目前領先：
+                    <span className="ml-1 font-semibold text-yellow-200">
+                      {leadingVote.tie || leadingVote.seat == null
+                        ? '同票（尚未領先）'
+                        : formatPlayer(leadingVote.seat)}
+                    </span>
+                  </div>
+                )}
               </div>
             )}
 

@@ -19,6 +19,7 @@ import type {
   UndercoverParticipant,
   UndercoverPlayer,
   UndercoverRole,
+  UndercoverEliminationVote,
 } from '@/types/undercover'
 import { getRandomWordPair } from './constants'
 
@@ -155,6 +156,7 @@ export async function startUndercoverGame(roomId: string, undercoverCount: numbe
     words: wordPair,
     currentRound: 1,
     eliminatedSeats: [],
+    votes: [],
     winnerRole: null,
     updated_at: new Date(),
   })
@@ -167,6 +169,55 @@ export async function updateUndercoverGame(
   const gameRef = doc(db, COLLECTION_NAME, roomId)
   await updateDoc(gameRef, {
     ...payload,
+    updated_at: new Date(),
+  })
+}
+
+/**
+ * 存活玩家投票要淘汰誰（每人一票，可改票；下一輪/淘汰後會清空）
+ */
+export async function submitUndercoverVote(
+  roomId: string,
+  voterParticipantId: string,
+  targetSeat: number
+): Promise<void> {
+  const gameRef = doc(db, COLLECTION_NAME, roomId)
+  const snap = await getDoc(gameRef)
+  if (!snap.exists()) {
+    throw new Error('房間不存在')
+  }
+
+  const data = snap.data() as UndercoverGameData
+  if (data.status !== 'playing') {
+    throw new Error('遊戲尚未開始或已結束')
+  }
+
+  const players = data.players || []
+  const voter = players.find((p) => p.participantId === voterParticipantId)
+  if (!voter) {
+    throw new Error('找不到對應玩家')
+  }
+  if (!voter.alive) {
+    throw new Error('已被淘汰的玩家不能投票')
+  }
+
+  const target = players.find((p) => p.seat === targetSeat)
+  if (!target) {
+    throw new Error('找不到投票目標')
+  }
+  if (!target.alive) {
+    throw new Error('不能投票淘汰已被淘汰的玩家')
+  }
+  if (target.seat === voter.seat) {
+    throw new Error('不能投票淘汰自己')
+  }
+
+  const existingVotes: UndercoverEliminationVote[] = data.votes || []
+  const withoutCurrent = existingVotes.filter((v) => v.voterSeat !== voter.seat)
+  const nextVotes: UndercoverEliminationVote[] = [...withoutCurrent, { voterSeat: voter.seat, targetSeat }]
+
+  await updateDoc(gameRef, {
+    votes: nextVotes,
     updated_at: new Date(),
   })
 }
@@ -225,6 +276,7 @@ export async function eliminateUndercoverPlayer(
 
   let nextStatus: UndercoverGameData['status'] = data.status
   let winnerRole: UndercoverGameData['winnerRole'] | null | undefined = data.winnerRole
+  const nextRound = (data.currentRound ?? 1) + 1
 
   if (aliveUndercover === 0) {
     nextStatus = 'finished'
@@ -239,6 +291,9 @@ export async function eliminateUndercoverPlayer(
     eliminatedSeats,
     status: nextStatus,
     winnerRole: winnerRole ?? null,
+    // 淘汰後進入下一輪（純顯示用），並清空本輪投票
+    currentRound: nextStatus === 'playing' ? nextRound : data.currentRound ?? 1,
+    votes: [],
     updated_at: new Date(),
   })
 }
@@ -264,6 +319,7 @@ export async function resetUndercoverGameToLobby(roomId: string): Promise<void> 
     words: null,
     currentRound: null,
     eliminatedSeats: [],
+    votes: [],
     winnerRole: null,
     updated_at: new Date(),
   })
