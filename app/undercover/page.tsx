@@ -73,12 +73,20 @@ export default function UndercoverLobby() {
           >
             ← 返回遊戲大廳
           </button>
-          <button
-            onClick={() => router.push('/undercover/rules')}
-            className="px-3 sm:px-4 py-1.5 sm:py-2 bg-slate-800/90 hover:bg-slate-700/90 rounded-lg transition-colors text-[11px] sm:text-xs font-semibold text-slate-100 border border-slate-600/80"
-          >
-            遊戲規則
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => router.push('/undercover/rules')}
+              className="px-3 sm:px-4 py-1.5 sm:py-2 bg-slate-800/90 hover:bg-slate-700/90 rounded-lg transition-colors text-[11px] sm:text-xs font-semibold text-slate-100 border border-slate-600/80"
+            >
+              遊戲規則
+            </button>
+            <button
+              onClick={() => router.push('/undercover/rooms')}
+              className="px-3 sm:px-4 py-1.5 sm:py-2 bg-slate-800/90 hover:bg-slate-700/90 rounded-lg transition-colors text-[11px] sm:text-xs font-semibold text-slate-100 border border-slate-600/80"
+            >
+              查看房間列表
+            </button>
+          </div>
         </div>
 
         <div className="flex items-center gap-3 mb-4">

@@ -1,6 +1,7 @@
 import {
   collection,
   doc,
+  deleteDoc,
   getDoc,
   onSnapshot,
   orderBy,
@@ -33,7 +34,7 @@ export async function getUndercoverGame(roomId: string): Promise<UndercoverGameD
 }
 
 /**
- * 建立一個新的「誰是臥底」房間大廳
+ * ?梁?????????賜???迎?制??????乩???
  */
 export async function createUndercoverRoom(
   roomId: string,
@@ -56,7 +57,7 @@ export async function createUndercoverRoom(
 }
 
 /**
- * 玩家加入房間大廳
+ * ???蹎?頛??剜頛?
  */
 export async function joinUndercoverRoom(
   roomId: string,
@@ -65,7 +66,7 @@ export async function joinUndercoverRoom(
   const gameRef = doc(db, COLLECTION_NAME, roomId)
   const snap = await getDoc(gameRef)
   if (!snap.exists()) {
-    throw new Error('房間不存在')
+    throw new Error('Room not found')
   }
 
   const data = snap.data() as UndercoverGameData
@@ -82,7 +83,7 @@ export async function joinUndercoverRoom(
 }
 
 /**
- * 玩家離開房間大廳
+ * ???嚚??頛??剜頛?
  */
 export async function leaveUndercoverRoom(roomId: string, participantId: string): Promise<void> {
   const gameRef = doc(db, COLLECTION_NAME, roomId)
@@ -101,29 +102,29 @@ export async function leaveUndercoverRoom(roomId: string, participantId: string)
 }
 
 /**
- * 房主按下「開始遊戲」，系統會：
- * - 從大廳參與者建立玩家列表與座位號
- * - 隨機抽取一組「平民詞 / 臥底詞」
- * - 指定 1 名臥底（其餘為平民，可日後擴充白板）
+ * ?頩????????迎???純????蝯???
+ * - ?綜竣銋????玲?舫?∴?????萄??冽???
+ * - ????鞈???荔???箏??? / ?鈭??堊窖??
+ * - ??? 1 ???制?????蝞?????謑?魂??梱走???
  */
 export async function startUndercoverGame(roomId: string, undercoverCount: number = 1): Promise<void> {
   const gameRef = doc(db, COLLECTION_NAME, roomId)
   const snap = await getDoc(gameRef)
   if (!snap.exists()) {
-    throw new Error('房間不存在')
+    throw new Error('Room not found')
   }
 
   const data = snap.data() as UndercoverGameData
 
   if (data.status !== 'lobby') {
-    throw new Error('遊戲已經開始或已結束')
+    throw new Error('Game already started or finished')
   }
 
   const participants = data.participants || []
   const playerCount = participants.length
 
   if (playerCount < 3) {
-    throw new Error('誰是臥底至少需要 3 位玩家')
+    throw new Error('Undercover requires at least 3 players')
   }
 
   const safeUndercoverCount = Math.max(1, Math.min(2, Math.min(undercoverCount, playerCount - 1)))
@@ -131,7 +132,7 @@ export async function startUndercoverGame(roomId: string, undercoverCount: numbe
 
   const wordPair = getRandomWordPair()
 
-  // 先決定座位，再隨機抽座位當臥底（避免每局固定「玩家1」是臥底）
+  // ???堊城瞍?????玟????????制??頦??伍??蝞???澗???????鈭???
   const undercoverSeatSet = new Set<number>()
   while (undercoverSeatSet.size < safeUndercoverCount) {
     const seat = Math.floor(Math.random() * playerCount) + 1
@@ -173,7 +174,7 @@ export async function updateUndercoverGame(
 }
 
 /**
- * 存活玩家投票要淘汰誰（每人一票，可改票；下一輪/淘汰後會清空）
+ * ?殉朵?????∪楊?秋撮????????剔???∪?????????????朵????敺??
  */
 export async function submitUndercoverVote(
   roomId: string,
@@ -183,32 +184,32 @@ export async function submitUndercoverVote(
   const gameRef = doc(db, COLLECTION_NAME, roomId)
   const snap = await getDoc(gameRef)
   if (!snap.exists()) {
-    throw new Error('房間不存在')
+    throw new Error('Room not found')
   }
 
   const data = snap.data() as UndercoverGameData
   if (data.status !== 'playing') {
-    throw new Error('遊戲尚未開始或已結束')
+    throw new Error('Game not started or already finished')
   }
 
   const players = data.players || []
   const voter = players.find((p) => p.participantId === voterParticipantId)
   if (!voter) {
-    throw new Error('找不到對應玩家')
+    throw new Error('Player not found')
   }
   if (!voter.alive) {
-    throw new Error('已被淘汰的玩家不能投票')
+    throw new Error('Eliminated players cannot vote')
   }
 
   const target = players.find((p) => p.seat === targetSeat)
   if (!target) {
-    throw new Error('找不到投票目標')
+    throw new Error('Vote target not found')
   }
   if (!target.alive) {
-    throw new Error('不能投票淘汰已被淘汰的玩家')
+    throw new Error('Cannot vote for an eliminated player')
   }
   if (target.seat === voter.seat) {
-    throw new Error('不能投票淘汰自己')
+    throw new Error('Cannot vote for yourself')
   }
 
   const existingVotes: UndercoverEliminationVote[] = data.votes || []
@@ -222,10 +223,10 @@ export async function submitUndercoverVote(
 }
 
 /**
- * 房主在每輪投票後標記淘汰的玩家
- * 同時檢查是否達成勝利條件：
- * - 所有臥底被淘汰 => 平民獲勝
- * - 臥底人數 >= 平民人數 => 臥底獲勝
+ * ?頩???????∪?????朵??????
+ * ????潘撓貔??秋?????豲???颲???
+ * - ????佗?制?斤?謢瑟? => ?????
+ * - ?鈭??剔捂??>= ???剔捂??=> ?鈭????
  */
 export async function eliminateUndercoverPlayer(
   roomId: string,
@@ -235,27 +236,27 @@ export async function eliminateUndercoverPlayer(
   const gameRef = doc(db, COLLECTION_NAME, roomId)
   const snap = await getDoc(gameRef)
   if (!snap.exists()) {
-    throw new Error('房間不存在')
+    throw new Error('Room not found')
   }
 
   const data = snap.data() as UndercoverGameData
   if (data.status !== 'playing') {
-    throw new Error('遊戲尚未開始或已結束')
+    throw new Error('Game not started or already finished')
   }
 
   const participants = data.participants || []
   const host = participants.find((p) => p.id === hostParticipantId)
   if (!host || !host.isHost) {
-    throw new Error('只有房主可以標記淘汰玩家')
+    throw new Error('Only host can eliminate players')
   }
 
   const players = data.players || []
   const target = players.find((p) => p.seat === targetSeat)
   if (!target) {
-    throw new Error('找不到要淘汰的玩家')
+    throw new Error('Target player not found')
   }
   if (!target.alive) {
-    throw new Error('該玩家已被淘汰')
+    throw new Error('Target player already eliminated')
   }
 
   const updatedPlayers = players.map((p) =>
@@ -290,7 +291,7 @@ export async function eliminateUndercoverPlayer(
     eliminatedSeats,
     status: nextStatus,
     winnerRole: winnerRole ?? null,
-    // 淘汰後進入下一輪（純顯示用），並清空本輪投票
+    // ?朵??壇??????????嚗蝞???????捂謓梢?????
     currentRound: nextStatus === 'playing' ? nextRound : data.currentRound ?? 1,
     votes: [],
     updated_at: new Date(),
@@ -298,18 +299,18 @@ export async function eliminateUndercoverPlayer(
 }
 
 /**
- * 遊戲結束後重置回大廳（保留房主，清空玩家 / 詞彙與淘汰紀錄）
+ * ????荒???綽??菜???剜頛????謕??陷??敺?? / ?堊竣??????????
  */
 export async function resetUndercoverGameToLobby(roomId: string): Promise<void> {
   const gameRef = doc(db, COLLECTION_NAME, roomId)
   const snap = await getDoc(gameRef)
   if (!snap.exists()) {
-    throw new Error('房間不存在')
+    throw new Error('Room not found')
   }
 
   const data = snap.data() as UndercoverGameData
   if (data.status !== 'finished') {
-    throw new Error('只有在遊戲結束後才能重新開局')
+    throw new Error('Can only reset after game has finished')
   }
 
   await updateDoc(gameRef, {
@@ -377,5 +378,11 @@ export function subscribeToAllUndercoverRooms(
       callback([])
     }
   )
+}
+
+
+export async function deleteUndercoverRoom(roomId: string): Promise<void> {
+  const gameRef = doc(db, COLLECTION_NAME, roomId)
+  await deleteDoc(gameRef)
 }
 
