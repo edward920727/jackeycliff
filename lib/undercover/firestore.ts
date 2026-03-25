@@ -127,28 +127,27 @@ export async function startUndercoverGame(roomId: string, undercoverCount: numbe
   }
 
   const safeUndercoverCount = Math.max(1, Math.min(2, Math.min(undercoverCount, playerCount - 1)))
-  const civilianCount = playerCount - safeUndercoverCount
-
   const shuffled = [...participants].sort(() => Math.random() - 0.5)
-
-  const roles: UndercoverRole[] = []
-  for (let i = 0; i < playerCount; i += 1) {
-    if (i < safeUndercoverCount) {
-      roles.push('undercover')
-    } else {
-      roles.push('civilian')
-    }
-  }
 
   const wordPair = getRandomWordPair()
 
-  const players: UndercoverPlayer[] = shuffled.map((p, idx) => ({
-    seat: idx + 1,
-    participantId: p.id,
-    name: p.name,
-    role: roles[idx] || 'civilian',
-    alive: true,
-  }))
+  // 先決定座位，再隨機抽座位當臥底（避免每局固定「玩家1」是臥底）
+  const undercoverSeatSet = new Set<number>()
+  while (undercoverSeatSet.size < safeUndercoverCount) {
+    const seat = Math.floor(Math.random() * playerCount) + 1
+    undercoverSeatSet.add(seat)
+  }
+
+  const players: UndercoverPlayer[] = shuffled.map((p, idx) => {
+    const seat = idx + 1
+    return {
+      seat,
+      participantId: p.id,
+      name: p.name,
+      role: undercoverSeatSet.has(seat) ? 'undercover' : 'civilian',
+      alive: true,
+    }
+  })
 
   await updateDoc(gameRef, {
     status: 'playing',
