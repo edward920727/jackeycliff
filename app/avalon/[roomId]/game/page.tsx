@@ -32,6 +32,18 @@ export default function AvalonGamePage() {
 
   const pid = searchParams.get('pid') || ''
 
+  const playerBySeat = useMemo(() => {
+    const map = new Map<number, AvalonPlayer>()
+    for (const p of game?.players || []) map.set(p.seat, p)
+    return map
+  }, [game?.players])
+
+  const formatPlayer = (seat: number) => {
+    const p = playerBySeat.get(seat)
+    const name = p?.name?.trim()
+    return name ? `${name}（${seat}）` : `玩家 ${seat}`
+  }
+
   // 載入遊戲
   useEffect(() => {
     async function init() {
@@ -118,7 +130,7 @@ export default function AvalonGamePage() {
             className="text-xs sm:text-sm text-slate-100 flex items-center gap-2"
           >
             <span className="px-2 py-0.5 rounded-full bg-slate-700 text-[10px] sm:text-xs">
-              玩家 {vp.seat}
+              {formatPlayer(vp.seat)}
             </span>
             <span className="text-slate-300">{lineText}</span>
           </div>
@@ -297,6 +309,14 @@ export default function AvalonGamePage() {
   const myParticipantName =
     game.participants?.find((p) => p.id === pid)?.name ?? myPlayer.name
 
+  const teamVotesBySeat = useMemo(() => {
+    const map = new Map<number, boolean>()
+    for (const v of game.votes || []) {
+      map.set(v.seat, v.approve)
+    }
+    return map
+  }, [game.votes])
+
   return (
     <div
       className="min-h-screen bg-black/70 p-4 sm:p-6"
@@ -358,7 +378,7 @@ export default function AvalonGamePage() {
             <div className="flex items-center justify-between gap-2 mb-3">
               <div className="flex items-center gap-2">
                 <span className="px-2 py-0.5 rounded-full bg-slate-900/90 text-[11px] sm:text-xs text-amber-100 border border-yellow-900/70">
-                  玩家 {myPlayer.seat}
+                  {formatPlayer(myPlayer.seat)}
                 </span>
                 <span
                   className={
@@ -448,7 +468,7 @@ export default function AvalonGamePage() {
               <div className="text-xs sm:text-sm text-amber-100/90">
                 目前隊長：
                 <span className="ml-1 font-semibold text-emerald-300">
-                  玩家 {game.leaderSeat}
+                  {formatPlayer(game.leaderSeat)}
                   {isLeader && '（你）'}
                 </span>
               </div>
@@ -477,7 +497,7 @@ export default function AvalonGamePage() {
                                 : 'bg-slate-900/80 border-slate-600 text-amber-100 hover:border-emerald-400'
                             }`}
                           >
-                            玩家 {p.seat}
+                            {formatPlayer(p.seat)}
                             {p.seat === myPlayer.seat && '（你）'}
                           </button>
                         )
@@ -497,7 +517,7 @@ export default function AvalonGamePage() {
                   </>
                 ) : (
                   <div className="text-xs sm:text-sm text-amber-100/90">
-                    等待隊長（玩家 {game.leaderSeat}）選擇本輪出任務的隊伍…
+                    等待隊長（{formatPlayer(game.leaderSeat)}）選擇本輪出任務的隊伍…
                   </div>
                 )}
               </div>
@@ -507,7 +527,7 @@ export default function AvalonGamePage() {
             {game.phase === 'team_vote' && (
               <div className="space-y-3">
                 <div className="text-xs sm:text-sm text-amber-100/90">
-                  本輪隊長（玩家 {game.leaderSeat}）提案的隊伍：
+                  本輪隊長（{formatPlayer(game.leaderSeat)}）提案的隊伍：
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {game.players.map((p) => {
@@ -517,7 +537,7 @@ export default function AvalonGamePage() {
                         key={p.seat}
                         className="px-3 py-1 rounded-full bg-slate-900/80 border border-slate-600 text-xs sm:text-sm text-amber-100"
                       >
-                        玩家 {p.seat}
+                        {formatPlayer(p.seat)}
                         {p.seat === myPlayer.seat && '（你）'}
                       </span>
                     )
@@ -551,6 +571,37 @@ export default function AvalonGamePage() {
                 <div className="text-[11px] sm:text-xs text-amber-200/80">
                   目前已投票人數：{game.votes?.length ?? 0} / {game.player_count}。
                 </div>
+
+                <div className="pt-2 border-t border-yellow-900/40">
+                  <div className="text-[11px] sm:text-xs text-amber-100/90 mb-2">
+                    投票明細（誰投贊成 / 反對）：
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {game.players
+                      .slice()
+                      .sort((a, b) => a.seat - b.seat)
+                      .map((p) => {
+                        const vote = teamVotesBySeat.get(p.seat)
+                        const label =
+                          vote == null ? '未投票' : vote ? '贊成' : '反對'
+                        const cls =
+                          vote == null
+                            ? 'bg-slate-900/70 border-slate-600 text-amber-100/80'
+                            : vote
+                              ? 'bg-emerald-600/80 border-emerald-400/80 text-amber-50'
+                              : 'bg-rose-700/80 border-rose-400/80 text-amber-50'
+                        return (
+                          <span
+                            key={p.seat}
+                            className={`px-3 py-1 rounded-full border text-[11px] sm:text-xs ${cls}`}
+                          >
+                            {formatPlayer(p.seat)}
+                            {p.seat === myPlayer.seat && '（你）'}：{label}
+                          </span>
+                        )
+                      })}
+                  </div>
+                </div>
               </div>
             )}
 
@@ -568,7 +619,7 @@ export default function AvalonGamePage() {
                         key={p.seat}
                         className="px-3 py-1 rounded-full bg-slate-900/80 border border-slate-600 text-xs sm:text-sm text-amber-100"
                       >
-                        玩家 {p.seat}
+                        {formatPlayer(p.seat)}
                         {p.seat === myPlayer.seat && '（你）'}
                       </span>
                     )
@@ -628,7 +679,7 @@ export default function AvalonGamePage() {
                               : 'bg-slate-900/80 border-slate-600 text-amber-100 hover:border-rose-400'
                           }`}
                         >
-                          玩家 {p.seat}
+                          {formatPlayer(p.seat)}
                           {p.seat === myPlayer.seat && '（你）'}
                         </button>
                       ))}
