@@ -90,7 +90,26 @@ export default function GameHub() {
             <p className="text-xs text-gray-500">
               5–10 人適合｜支援線上房間、身分發牌、任務紀錄
             </p>
-            </button>
+          </button>
+
+          {/* 亡靈盛宴 */}
+          <button
+            onClick={() => router.push('/undead-feast')}
+            className="group bg-gray-900/80 border border-gray-700 rounded-2xl p-4 sm:p-6 text-left hover:border-fuchsia-500 hover:shadow-lg hover:shadow-fuchsia-500/20 transition-all"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-xl font-bold text-white group-hover:text-fuchsia-300">
+                亡靈盛宴
+              </h2>
+              <span className="text-2xl">💀</span>
+            </div>
+            <p className="text-sm text-gray-300 mb-2">
+              化身亡靈與獵人互相博弈，透過策略與時機掌控整場盛宴節奏。
+            </p>
+            <p className="text-xs text-gray-500">
+              4–8 人適合｜陣營對抗、策略推理、派對同樂
+            </p>
+          </button>
         </div>
 
         <div className="mt-4 flex justify-center">
