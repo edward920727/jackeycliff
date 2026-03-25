@@ -38,7 +38,8 @@ export default function AvalonGamePage() {
     return map
   }, [game?.players])
 
-  const formatPlayer = (seat: number) => {
+  const formatPlayer = (seat?: number) => {
+    if (seat == null) return '—'
     const p = playerBySeat.get(seat)
     const name = p?.name?.trim()
     return name ? `${name}（${seat}）` : `玩家 ${seat}`
