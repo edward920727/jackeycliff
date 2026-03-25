@@ -44,6 +44,28 @@ export default function AvalonGamePage() {
     return name ? `${name}（${seat}）` : `玩家 ${seat}`
   }
 
+  // ---- Derived state (must be declared before any early returns) ----
+  const votesSafe = game?.votes ?? []
+  const playersSafe = game?.players ?? []
+  const assassinationTargetSeatSafe = game?.assassinationTargetSeat ?? null
+
+  const teamVotesBySeat = useMemo(() => {
+    const map = new Map<number, boolean>()
+    for (const v of votesSafe) {
+      map.set(v.seat, v.approve)
+    }
+    return map
+  }, [votesSafe])
+
+  const assassinationResult = useMemo(() => {
+    const targetSeat = assassinationTargetSeatSafe
+    if (targetSeat == null) return null
+    const targetPlayer = playersSafe.find((p) => p.seat === targetSeat)
+    if (!targetPlayer) return null
+    const success = targetPlayer.roleId === 'merlin'
+    return { targetSeat, success }
+  }, [assassinationTargetSeatSafe, playersSafe])
+
   // 載入遊戲
   useEffect(() => {
     async function init() {
@@ -308,23 +330,6 @@ export default function AvalonGamePage() {
     game.participants?.some((p) => p.id === pid && p.isHost) ?? false
   const myParticipantName =
     game.participants?.find((p) => p.id === pid)?.name ?? myPlayer.name
-
-  const teamVotesBySeat = useMemo(() => {
-    const map = new Map<number, boolean>()
-    for (const v of game.votes || []) {
-      map.set(v.seat, v.approve)
-    }
-    return map
-  }, [game.votes])
-
-  const assassinationResult = useMemo(() => {
-    const targetSeat = game.assassinationTargetSeat
-    if (targetSeat == null) return null
-    const targetPlayer = game.players.find((p) => p.seat === targetSeat)
-    if (!targetPlayer) return null
-    const success = targetPlayer.roleId === 'merlin'
-    return { targetSeat, success }
-  }, [game.assassinationTargetSeat, game.players])
 
   return (
     <div
