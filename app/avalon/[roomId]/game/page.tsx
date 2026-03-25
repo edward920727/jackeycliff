@@ -317,6 +317,15 @@ export default function AvalonGamePage() {
     return map
   }, [game.votes])
 
+  const assassinationResult = useMemo(() => {
+    const targetSeat = game.assassinationTargetSeat
+    if (targetSeat == null) return null
+    const targetPlayer = game.players.find((p) => p.seat === targetSeat)
+    if (!targetPlayer) return null
+    const success = targetPlayer.roleId === 'merlin'
+    return { targetSeat, success }
+  }, [game.assassinationTargetSeat, game.players])
+
   return (
     <div
       className="min-h-screen bg-black/70 p-4 sm:p-6"
@@ -714,6 +723,24 @@ export default function AvalonGamePage() {
                 >
                   {game.winnerFaction === 'good' ? '好人陣營獲勝' : '壞人陣營獲勝'}
                 </span>
+
+                {assassinationResult && (
+                  <div className="mt-3">
+                    <div className="text-[11px] sm:text-xs text-amber-200/90">
+                      刺殺結果（目標：{formatPlayer(assassinationResult.targetSeat)}）：
+                    </div>
+                    <div
+                      className={`mt-1 inline-flex items-center justify-center px-3 py-1 rounded-full border text-xs sm:text-sm font-semibold ${
+                        assassinationResult.success
+                          ? 'bg-emerald-600/80 border-emerald-400/80 text-amber-50'
+                          : 'bg-rose-700/80 border-rose-400/80 text-amber-50'
+                      }`}
+                    >
+                      {assassinationResult.success ? '刺殺成功（梅林被刺殺）' : '刺殺失敗（梅林未被刺殺）'}
+                    </div>
+                  </div>
+                )}
+
                 {isHostParticipant && (
                   <div className="mt-3 flex flex-col sm:flex-row gap-2 justify-center">
                     <button

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import type { AvalonGameData } from '@/types/avalon'
 import {
@@ -31,6 +31,11 @@ export default function AvalonRoomPage() {
   const pid = searchParams.get('pid') || ''
 
   const isHost = role === 'host'
+  const gameStatusRef = useRef<AvalonGameData['status'] | null>(null)
+
+  useEffect(() => {
+    gameStatusRef.current = game?.status ?? null
+  }, [game?.status])
 
   // 初始化房間與加入大廳
   useEffect(() => {
@@ -86,8 +91,9 @@ export default function AvalonRoomPage() {
 
     return () => {
       if (unsub) unsub()
-      // 嘗試從房間移除自己（不阻塞離開）
-      if (pid) {
+      // 只有在「仍在大廳(lobby)」時才把自己從 participants 移除。
+      // 否則從大廳跳轉到遊戲畫面時，會誤把玩家踢出房間，導致結束後無法回來再開一局。
+      if (pid && gameStatusRef.current !== 'started') {
         leaveAvalonRoom(roomId, pid).catch(() => {})
       }
     }
