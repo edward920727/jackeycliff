@@ -146,8 +146,8 @@ export async function startAvalonGame(roomId: string): Promise<void> {
 
   const data = snap.data() as AvalonGameData
 
-  if (data.status !== 'lobby') {
-    throw new Error('遊戲已經開始或已結束')
+  if (data.status === 'started') {
+    throw new Error('遊戲已經開始')
   }
 
   const participants = data.participants || []
@@ -203,6 +203,7 @@ export async function startAvalonGame(roomId: string): Promise<void> {
     missionResults: [],
     assassinParticipantId: assassinPlayer?.participantId,
     assassinationTargetSeat: null,
+    winnerFaction: deleteField(),
     updated_at: new Date(),
   })
 }
