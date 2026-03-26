@@ -82,11 +82,19 @@ export default function UndeadFeastGamePage() {
 
   useEffect(() => {
     if (!game || game.status !== 'guessing') return
-    const initial: Record<number, string> = {}
-    for (const b of game.boards || []) initial[b.ownerSeat] = ''
     const mine = (game.guessSubmissions || []).find((g) => g.guesserParticipantId === pid)
-    if (mine) for (const g of mine.guesses) initial[g.ownerSeat] = g.character
-    setGuessMap(initial)
+    setGuessMap((prev) => {
+      const next: Record<number, string> = {}
+      for (const b of game.boards || []) {
+        // Keep current local selection if present, avoid resetting when others submit.
+        next[b.ownerSeat] = prev[b.ownerSeat] || ''
+      }
+      // If I already submitted before, hydrate from my own submitted answers.
+      if (mine) {
+        for (const g of mine.guesses) next[g.ownerSeat] = g.character
+      }
+      return next
+    })
   }, [game?.status, game?.boards, game?.guessSubmissions, pid])
 
   const handleSubmitWord = async () => {
