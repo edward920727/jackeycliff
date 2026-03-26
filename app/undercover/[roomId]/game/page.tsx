@@ -227,6 +227,9 @@ export default function UndercoverGamePage() {
 
   const alivePlayers = game.players.filter((p) => p.alive)
   const eliminatedPlayers = game.players.filter((p) => !p.alive)
+  const totalUndercoverCount =
+    game.undercoverCount ?? game.players.filter((p) => p.role === 'undercover').length
+  const totalBlankCount = game.blankCount ?? game.players.filter((p) => p.role === 'blank').length
 
   const handleConfirmElimination = async () => {
     if (selectedEliminationSeat == null) {
@@ -415,6 +418,12 @@ export default function UndercoverGamePage() {
               </h2>
               <p className="text-[11px] sm:text-xs text-slate-300 mb-1">
                 透過語音或現場討論，輪流描述、發問、投票，並由房主在這裡標記被淘汰的玩家。
+              </p>
+              <p className="text-[11px] sm:text-xs text-slate-200">
+                本局配置：
+                <span className="ml-1 font-semibold text-rose-300">臥底 {totalUndercoverCount} 位</span>
+                <span className="mx-1 text-slate-500">/</span>
+                <span className="font-semibold text-yellow-200">白板 {totalBlankCount} 位</span>
               </p>
             </div>
 
