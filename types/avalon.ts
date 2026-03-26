@@ -40,6 +40,8 @@ export interface AvalonMissionResult {
   round: number
   success: boolean
   failCount: number
+  /** 該輪實際出任務的玩家座位 */
+  missionTeamSeats?: number[]
 }
 
 export interface AvalonGameData {

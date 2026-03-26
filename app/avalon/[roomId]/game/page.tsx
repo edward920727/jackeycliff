@@ -310,7 +310,7 @@ export default function AvalonGamePage() {
     return null
   }
 
-  if (game.status !== 'started') {
+  if (game.status === 'lobby') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#1a0f07] via-[#26140b] to-black p-4">
         <div className="bg-gradient-to-b from-amber-100/95 via-amber-50/95 to-amber-100/90 border-[3px] border-yellow-900/80 rounded-2xl shadow-[0_22px_70px_rgba(0,0,0,0.9)] p-6 sm:p-8 max-w-md w-full text-center">
@@ -487,7 +487,7 @@ export default function AvalonGamePage() {
 
         {/* 遊戲流程區塊：隊長選人 / 全體投票 / 任務執行 / 結果 */}
         <div className="mt-6 max-w-3xl mx-auto space-y-4">
-          {assassinationResult && game.status === 'finished' && (
+          {assassinationResult && (
             <div
               className={`border rounded-2xl p-4 shadow-[0_18px_45px_rgba(0,0,0,0.85)] ${
                 assassinationResult.success
@@ -544,7 +544,7 @@ export default function AvalonGamePage() {
                 return (
                   <div
                     key={idx}
-                    className={`flex-1 min-h-8 rounded-lg border text-[10px] sm:text-xs flex flex-col items-center justify-center py-1 text-amber-100 ${bg}`}
+                    className={`flex-1 min-h-8 rounded-lg border text-[10px] sm:text-xs flex flex-col items-center justify-center py-1 px-1 text-amber-100 ${bg}`}
                   >
                     {result ? (
                       <>
@@ -552,6 +552,16 @@ export default function AvalonGamePage() {
                         <div className="text-[9px] sm:text-[10px] text-amber-50/90">
                           成功 {Math.max(0, getMissionTeamSize(game.player_count, idx + 1) - result.failCount)} /
                           失敗 {result.failCount}
+                        </div>
+                        <div className="mt-0.5 text-[9px] sm:text-[10px] text-amber-100/85 text-center">
+                          出任務：
+                          {result.missionTeamSeats && result.missionTeamSeats.length > 0
+                            ? result.missionTeamSeats
+                                .slice()
+                                .sort((a, b) => a - b)
+                                .map((seat) => formatPlayer(seat))
+                                .join('、')
+                            : '—'}
                         </div>
                       </>
                     ) : (

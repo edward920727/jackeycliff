@@ -393,6 +393,7 @@ export async function submitMissionVote(
     round: currentRound,
     success: missionSuccess,
     failCount,
+    missionTeamSeats: [...teamSeats],
   }
   const allResults = [...prevResults, newResult]
 
