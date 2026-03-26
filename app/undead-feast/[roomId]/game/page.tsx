@@ -132,6 +132,10 @@ export default function UndeadFeastGamePage() {
   const pendingPlayers = players.filter(
     (p) => !(game.currentRoundSubmissions || {})[String(p.seat)]
   )
+  const guessSubmittedParticipantIds = new Set(
+    (game.guessSubmissions || []).map((sub) => sub.guesserParticipantId)
+  )
+  const pendingGuessPlayers = players.filter((p) => !guessSubmittedParticipantIds.has(p.participantId))
 
   return (
     <div
@@ -211,11 +215,21 @@ export default function UndeadFeastGamePage() {
         {game.status === 'guessing' && (
           <div className="bg-slate-900 rounded-xl border border-slate-700 p-4 space-y-3">
             <h2 className="text-xl font-bold text-yellow-200">猜測階段</h2>
+            <p className="text-sm text-slate-300">
+              進度：{players.length - pendingGuessPlayers.length} / {players.length}
+            </p>
+            {pendingGuessPlayers.length > 0 && (
+              <p className="text-xs text-amber-200">
+                尚未提交：{pendingGuessPlayers.map((p) => `${p.name}（${p.seat}）`).join('、')}
+              </p>
+            )}
             <div className="text-xs text-slate-400">候選人物：{(game.candidateCharacters || []).join('、')}</div>
             <div className="space-y-2">
               {game.boards.map((b) => (
                 <div key={b.ownerSeat} className="bg-slate-800/70 rounded-lg p-3 border border-slate-700">
-                  <div className="text-sm mb-2">骷髏 {b.ownerSeat}（{b.ownerName}）詞鏈：{b.words.join(' → ')}</div>
+                  <div className="text-sm mb-2">
+                    骷髏 {b.ownerSeat}（{b.ownerName}）提示詞：{b.words[b.words.length - 1] || '（無）'}
+                  </div>
                   <select
                     value={guessMap[b.ownerSeat] || ''}
                     onChange={(e) => setGuessMap((prev) => ({ ...prev, [b.ownerSeat]: e.target.value }))}
