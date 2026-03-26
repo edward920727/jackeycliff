@@ -129,9 +129,20 @@ export default function UndeadFeastGamePage() {
   const progressCount = Object.keys(game.currentRoundSubmissions || {}).length
   const challengeLabel = getChallengeLabel(game.currentRoundChallengeKey)
   const customChallengeText = game.currentRoundCustomChallengeText
+  const pendingPlayers = players.filter(
+    (p) => !(game.currentRoundSubmissions || {})[String(p.seat)]
+  )
 
   return (
-    <div className="min-h-screen bg-slate-950 p-4 sm:p-6 text-slate-100">
+    <div
+      className="min-h-screen bg-black/70 p-4 sm:p-6 text-slate-100"
+      style={{
+        backgroundImage: "url('/undead-feast-bg.png')",
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+      }}
+    >
       <div className="max-w-5xl mx-auto space-y-4">
         <div className="flex items-center justify-between">
           <button
@@ -150,6 +161,11 @@ export default function UndeadFeastGamePage() {
               第 {round} / {game.maxRounds} 輪（每輪全員提交後自動進下一輪）
             </p>
             <p className="text-sm text-slate-300">進度：{progressCount} / {total}</p>
+            {pendingPlayers.length > 0 && (
+              <p className="text-xs text-amber-200">
+                尚未提交：{pendingPlayers.map((p) => `${p.name}（${p.seat}）`).join('、')}
+              </p>
+            )}
             {game.advancedMode && challengeLabel && (
               <p className="text-xs text-rose-300">本輪難題：{challengeLabel}</p>
             )}
