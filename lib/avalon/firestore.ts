@@ -13,6 +13,7 @@ import {
   arrayUnion,
   arrayRemove,
   deleteDoc,
+  deleteField,
 } from 'firebase/firestore'
 import { db } from '../firebase'
 import type {
@@ -510,16 +511,17 @@ export async function resetAvalonGameToLobby(roomId: string): Promise<void> {
     status: 'lobby',
     player_count: 0,
     players: [],
-    currentRound: undefined as any,
-    currentProposal: undefined as any,
-    phase: undefined as any,
-    leaderSeat: undefined as any,
+    currentRound: deleteField(),
+    currentProposal: deleteField(),
+    phase: deleteField(),
+    leaderSeat: deleteField(),
     proposedTeamSeats: [],
     votes: [],
     missionVotes: [],
     missionResults: [],
-    winnerFaction: undefined as any,
-    assassinationTargetSeat: undefined as any,
+    winnerFaction: deleteField(),
+    assassinationTargetSeat: deleteField(),
+    assassinParticipantId: deleteField(),
     updated_at: new Date(),
   })
 }
