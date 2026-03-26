@@ -22,12 +22,15 @@ export default function UndercoverRoomPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isStarting, setIsStarting] = useState(false)
+  const [undercoverCount, setUndercoverCount] = useState(1)
+  const [blankCount, setBlankCount] = useState(0)
 
   const role = (searchParams.get('role') || 'player') as 'host' | 'player'
   const name = searchParams.get('name') || '玩家'
   const pid = searchParams.get('pid') || ''
 
   const isHost = role === 'host'
+  const participantsCount = game?.participants?.length ?? 0
 
   useEffect(() => {
     if (!pid) {
@@ -97,6 +100,20 @@ export default function UndercoverRoomPage() {
     }
   }, [game?.status, roomId, pid, router])
 
+  useEffect(() => {
+    const maxUndercover = Math.max(1, participantsCount - 1)
+    if (undercoverCount > maxUndercover) {
+      setUndercoverCount(maxUndercover)
+    }
+  }, [undercoverCount, participantsCount])
+
+  useEffect(() => {
+    const maxBlank = Math.max(0, participantsCount - undercoverCount - 1)
+    if (blankCount > maxBlank) {
+      setBlankCount(maxBlank)
+    }
+  }, [blankCount, undercoverCount, participantsCount])
+
   const handleStartGame = async () => {
     if (!game) return
     if (!isHost) {
@@ -111,7 +128,7 @@ export default function UndercoverRoomPage() {
 
     try {
       setIsStarting(true)
-      await startUndercoverGame(roomId, 1)
+      await startUndercoverGame(roomId, undercoverCount, blankCount)
     } catch (err: any) {
       console.error(err)
       alert(err.message || '開始遊戲失敗')
@@ -193,7 +210,7 @@ export default function UndercoverRoomPage() {
                 誰是臥底房間大廳
               </h1>
               <p className="text-xs sm:text-sm text-slate-300 mt-1">
-                等待所有玩家加入後，由房主按下「開始遊戲」，大家會自動看到自己的詞與身分。
+                等待所有玩家加入後，由房主設定人數並按下「開始遊戲」，大家會看到自己的詞卡。
               </p>
             </div>
 
@@ -262,20 +279,55 @@ export default function UndercoverRoomPage() {
 
             <div className="mt-auto">
               {isHost ? (
-                <button
-                  onClick={handleStartGame}
-                  disabled={isStarting || participants.length < 3}
-                  className="mt-2 w-full px-3 sm:px-4 py-2.5 rounded-lg bg-gradient-to-b from-yellow-500 via-amber-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 disabled:from-slate-500 disabled:via-slate-500 disabled:to-slate-500 disabled:cursor-not-allowed text-slate-950 font-semibold text-sm sm:text-base shadow-[0_10px_26px_rgba(0,0,0,0.9)] border border-yellow-300/80 transition-all"
-                >
-                  {isStarting
-                    ? '開始中...'
-                    : participants.length < 3
-                    ? '至少需要 3 位玩家'
-                    : '開始遊戲'}
-                </button>
+                <>
+                  <div className="space-y-2 mt-1">
+                    <label className="block text-[11px] sm:text-xs text-slate-300">
+                      臥底數量
+                      <input
+                        type="number"
+                        min={1}
+                        max={Math.max(1, participants.length - 1)}
+                        value={undercoverCount}
+                        onChange={(e) => {
+                          const next = Number(e.target.value)
+                          if (!Number.isFinite(next)) return
+                          setUndercoverCount(Math.max(1, Math.floor(next)))
+                        }}
+                        className="mt-1 w-full bg-slate-800/90 border border-slate-600 rounded-md px-2 py-1.5 text-slate-100 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      />
+                    </label>
+                    <label className="block text-[11px] sm:text-xs text-slate-300">
+                      白板平民數量
+                      <input
+                        type="number"
+                        min={0}
+                        max={Math.max(0, participants.length - undercoverCount - 1)}
+                        value={blankCount}
+                        onChange={(e) => {
+                          const next = Number(e.target.value)
+                          if (!Number.isFinite(next)) return
+                          setBlankCount(Math.max(0, Math.floor(next)))
+                        }}
+                        className="mt-1 w-full bg-slate-800/90 border border-slate-600 rounded-md px-2 py-1.5 text-slate-100 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      />
+                    </label>
+                  </div>
+
+                  <button
+                    onClick={handleStartGame}
+                    disabled={isStarting || participants.length < 3}
+                    className="mt-2 w-full px-3 sm:px-4 py-2.5 rounded-lg bg-gradient-to-b from-yellow-500 via-amber-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 disabled:from-slate-500 disabled:via-slate-500 disabled:to-slate-500 disabled:cursor-not-allowed text-slate-950 font-semibold text-sm sm:text-base shadow-[0_10px_26px_rgba(0,0,0,0.9)] border border-yellow-300/80 transition-all"
+                  >
+                    {isStarting
+                      ? '開始中...'
+                      : participants.length < 3
+                      ? '至少需要 3 位玩家'
+                      : '開始遊戲'}
+                  </button>
+                </>
               ) : (
                 <div className="mt-2 text-[11px] sm:text-xs text-slate-300">
-                  等待房主按下「開始遊戲」，開始後會自動顯示你的詞與身分。
+                  等待房主按下「開始遊戲」，開始後會自動顯示你的詞卡。
                 </div>
               )}
             </div>

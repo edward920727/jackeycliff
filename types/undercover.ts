@@ -42,6 +42,12 @@ export interface UndercoverGameData {
   /** 開局後分配好身分與座位的玩家列表 */
   players: UndercoverPlayer[]
 
+  /** 房主設定：臥底人數 */
+  undercoverCount?: number
+
+  /** 房主設定：白板平民人數 */
+  blankCount?: number
+
   /** 本局使用的詞彙（平民詞 / 臥底詞） */
   words?: UndercoverWords
 

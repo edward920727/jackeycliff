@@ -223,12 +223,7 @@ export default function UndercoverGamePage() {
   const displayName = myParticipant?.name || urlName || myPlayer.name
 
   const words = game.words
-  const isUndercover = myPlayer.role === 'undercover'
-  const myWord = words
-    ? isUndercover
-      ? words.undercover
-      : words.civilian
-    : ''
+  const myWord = words ? (myPlayer.role === 'undercover' ? words.undercover : words.civilian) : ''
 
   const alivePlayers = game.players.filter((p) => p.alive)
   const eliminatedPlayers = game.players.filter((p) => !p.alive)
@@ -308,10 +303,10 @@ export default function UndercoverGamePage() {
           <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-yellow-300 via-amber-300 to-orange-300 bg-clip-text text-transparent tracking-wide">
-                你的身分與關鍵詞
+                你的詞卡
               </h1>
               <p className="text-xs sm:text-sm text-slate-200 mt-1">
-                這個畫面只會顯示你的身分與詞彙，請不要讓其他玩家看到你的螢幕。
+                這個畫面只會顯示你的詞卡內容，請不要讓其他玩家看到你的螢幕。
               </p>
             </div>
 
@@ -333,15 +328,6 @@ export default function UndercoverGamePage() {
                 <span className="px-2 py-0.5 rounded-full bg-slate-800 text-[11px] sm:text-xs text-yellow-100 border border-yellow-500/70">
                   玩家 {myPlayer.seat}・{displayName}
                 </span>
-                <span
-                  className={
-                    isUndercover
-                      ? 'text-xs sm:text-sm font-semibold text-rose-300 drop-shadow-[0_0_8px_rgba(248,113,113,0.5)]'
-                      : 'text-xs sm:text-sm font-semibold text-emerald-300 drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]'
-                  }
-                >
-                  {isUndercover ? '你是臥底' : '你是平民'}
-                </span>
               </div>
             </div>
 
@@ -351,9 +337,9 @@ export default function UndercoverGamePage() {
                   Blank Player
                 </div>
                 <p className="mt-3 text-sm sm:text-base text-slate-100 leading-relaxed">
-                  你是
-                  <span className="font-semibold text-yellow-200">「白板玩家」</span>，沒有固定詞彙，
-                  可以自由想一個與主題接近、但不會太突兀的詞，照樣參與描述與討論。
+                  你的詞卡是
+                  <span className="font-semibold text-yellow-200">「白板」</span>，沒有固定詞彙，
+                  請自由想一個與主題接近、但不會太突兀的詞，再照樣參與描述與討論。
                 </p>
               </div>
             ) : (
