@@ -501,8 +501,8 @@ export async function resetAvalonGameToLobby(roomId: string): Promise<void> {
   }
 
   const data = snap.data() as AvalonGameData
-  if (data.status !== 'finished') {
-    throw new Error('只有在遊戲結束後才能重新開局')
+  if (data.status === 'lobby') {
+    throw new Error('目前已經在大廳狀態')
   }
 
   await updateDoc(gameRef, {
@@ -511,7 +511,7 @@ export async function resetAvalonGameToLobby(roomId: string): Promise<void> {
     players: [],
     currentRound: undefined as any,
     currentProposal: undefined as any,
-    phase: 'leader_select',
+    phase: undefined as any,
     leaderSeat: undefined as any,
     proposedTeamSeats: [],
     votes: [],

@@ -29,6 +29,7 @@ export default function AvalonGamePage() {
     null
   )
   const [assassinationTarget, setAssassinationTarget] = useState<number | null>(null)
+  const [assassinationReturnCountdown, setAssassinationReturnCountdown] = useState<number>(5)
 
   const pid = searchParams.get('pid') || ''
 
@@ -118,6 +119,37 @@ export default function AvalonGamePage() {
     })
     router.push(`/avalon/${roomId}?${params.toString()}`)
   }, [game?.status, game?.participants, roomId, pid, router])
+
+  // 刺客完成刺殺後，自動帶所有玩家回房間大廳（保留身分參數）
+  useEffect(() => {
+    if (!game || !pid) return
+    if (game.status !== 'finished') return
+    if (game.assassinationTargetSeat == null) return
+
+    const participants = game.participants || []
+    const me = participants.find((p) => p.id === pid)
+    const isHost = me?.isHost ?? false
+    const name = me?.name || '玩家'
+
+    setAssassinationReturnCountdown(5)
+    const countdownTimer = window.setInterval(() => {
+      setAssassinationReturnCountdown((prev) => (prev > 1 ? prev - 1 : 1))
+    }, 1000)
+
+    const timer = window.setTimeout(() => {
+      const params = new URLSearchParams({
+        role: isHost ? 'host' : 'player',
+        name,
+        pid,
+      })
+      router.push(`/avalon/${roomId}?${params.toString()}`)
+    }, 5000)
+
+    return () => {
+      window.clearTimeout(timer)
+      window.clearInterval(countdownTimer)
+    }
+  }, [game?.status, game?.assassinationTargetSeat, game?.participants, roomId, pid, router])
 
   const renderVisibleForPlayer = (player: AvalonPlayer, allPlayers: AvalonPlayer[]) => {
     const roleDef = AVALON_ROLES[player.roleId]
@@ -331,6 +363,23 @@ export default function AvalonGamePage() {
     game.participants?.some((p) => p.id === pid && p.isHost) ?? false
   const myParticipantName =
     game.participants?.find((p) => p.id === pid)?.name ?? myPlayer.name
+  const handleRestartToLobby = async () => {
+    const confirmed = window.confirm('確定要重新開始嗎？這會結束目前對局並回到房間大廳。')
+    if (!confirmed) return
+
+    try {
+      await resetAvalonGameToLobby(roomId)
+      const params = new URLSearchParams({
+        role: 'host',
+        name: myParticipantName,
+        pid,
+      })
+      router.push(`/avalon/${roomId}?${params.toString()}`)
+    } catch (err) {
+      console.error(err)
+      alert((err as Error).message)
+    }
+  }
 
   return (
     <div
@@ -351,12 +400,23 @@ export default function AvalonGamePage() {
             ← 返回大廳
           </button>
 
-          <div className="text-right">
-            <div className="text-[10px] sm:text-xs text-amber-300/80 tracking-wide">
-              房間代碼
-            </div>
-            <div className="font-mono text-sm sm:text-lg text-amber-100 drop-shadow-[0_0_10px_rgba(0,0,0,0.7)]">
-              {roomId}
+          <div className="flex items-center gap-2">
+            {isHostParticipant && (
+              <button
+                type="button"
+                onClick={handleRestartToLobby}
+                className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg bg-rose-800/90 hover:bg-rose-700 text-amber-50 text-[11px] sm:text-xs font-semibold border border-rose-400/40 shadow-md"
+              >
+                重新開始
+              </button>
+            )}
+            <div className="text-right">
+              <div className="text-[10px] sm:text-xs text-amber-300/80 tracking-wide">
+                房間代碼
+              </div>
+              <div className="font-mono text-sm sm:text-lg text-amber-100 drop-shadow-[0_0_10px_rgba(0,0,0,0.7)]">
+                {roomId}
+              </div>
             </div>
           </div>
         </div>
@@ -427,6 +487,26 @@ export default function AvalonGamePage() {
 
         {/* 遊戲流程區塊：隊長選人 / 全體投票 / 任務執行 / 結果 */}
         <div className="mt-6 max-w-3xl mx-auto space-y-4">
+          {assassinationResult && game.status === 'finished' && (
+            <div
+              className={`border rounded-2xl p-4 shadow-[0_18px_45px_rgba(0,0,0,0.85)] ${
+                assassinationResult.success
+                  ? 'bg-emerald-900/70 border-emerald-400/80'
+                  : 'bg-rose-900/70 border-rose-400/80'
+              }`}
+            >
+              <div className="text-xs sm:text-sm text-amber-100/90">刺殺結果</div>
+              <div className="mt-1 text-sm sm:text-base font-semibold text-amber-50">
+                {assassinationResult.success
+                  ? `刺殺成功：${formatPlayer(assassinationResult.targetSeat)} 是梅林`
+                  : `刺殺失敗：${formatPlayer(assassinationResult.targetSeat)} 不是梅林`}
+              </div>
+              <div className="mt-1 text-[11px] sm:text-xs text-amber-100/85">
+                {assassinationReturnCountdown} 秒後自動返回房間大廳
+              </div>
+            </div>
+          )}
+
           {/* 任務進度條 */}
           <div className="bg-gradient-to-b from-[#1e1309] via-[#23140a] to-[#120908] border-[3px] border-yellow-900/80 rounded-2xl p-4 shadow-[0_18px_45px_rgba(0,0,0,0.85)]">
             <div className="flex items-center justify-between mb-3">
@@ -464,13 +544,19 @@ export default function AvalonGamePage() {
                 return (
                   <div
                     key={idx}
-                    className={`flex-1 h-8 rounded-lg border text-[10px] sm:text-xs flex items-center justify-center text-amber-100 ${bg}`}
+                    className={`flex-1 min-h-8 rounded-lg border text-[10px] sm:text-xs flex flex-col items-center justify-center py-1 text-amber-100 ${bg}`}
                   >
-                    {result
-                      ? result.success
-                        ? '成功'
-                        : '失敗'
-                      : `第 ${idx + 1} 輪`}
+                    {result ? (
+                      <>
+                        <div>{result.success ? '成功' : '失敗'}</div>
+                        <div className="text-[9px] sm:text-[10px] text-amber-50/90">
+                          成功 {Math.max(0, getMissionTeamSize(game.player_count, idx + 1) - result.failCount)} /
+                          失敗 {result.failCount}
+                        </div>
+                      </>
+                    ) : (
+                      `第 ${idx + 1} 輪`
+                    )}
                   </div>
                 )
               })}
@@ -751,20 +837,7 @@ export default function AvalonGamePage() {
                   <div className="mt-3 flex flex-col sm:flex-row gap-2 justify-center">
                     <button
                       type="button"
-                      onClick={async () => {
-                        try {
-                          await resetAvalonGameToLobby(roomId)
-                          const params = new URLSearchParams({
-                            role: 'host',
-                            name: myParticipantName,
-                            pid,
-                          })
-                          router.push(`/avalon/${roomId}?${params.toString()}`)
-                        } catch (err) {
-                          console.error(err)
-                          alert((err as Error).message)
-                        }
-                      }}
+                      onClick={handleRestartToLobby}
                       className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg bg-gradient-to-b from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 text-amber-100 text-[11px] sm:text-xs font-semibold border border-yellow-900/60 shadow-md"
                     >
                       回到房間重新配置並再來一局
