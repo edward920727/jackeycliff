@@ -145,12 +145,22 @@ export default function UndeadFeastGamePage() {
     >
       <div className="max-w-5xl mx-auto space-y-4">
         <div className="flex items-center justify-between">
-          <button
-            onClick={() => router.push(`/undead-feast/${roomId}`)}
-            className="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs"
-          >
-            ← 返回房間
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => router.push(`/undead-feast/${roomId}`)}
+              className="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs"
+            >
+              ← 返回房間
+            </button>
+            {isHost && (
+              <button
+                onClick={handleReset}
+                className="px-3 py-2 rounded-lg bg-rose-900/70 hover:bg-rose-800/70 text-xs border border-rose-400/30"
+              >
+                重新開始（回到房間）
+              </button>
+            )}
+          </div>
           <div className="text-xs">房間：{roomId}</div>
         </div>
 
