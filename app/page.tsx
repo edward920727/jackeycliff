@@ -35,6 +35,25 @@ export default function GameHub() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+          {/* 你畫我猜 */}
+          <button
+            onClick={() => router.push('/pictionary')}
+            className="group bg-gray-900/80 border border-gray-700 rounded-2xl p-4 sm:p-6 text-left hover:border-rose-500 hover:shadow-lg hover:shadow-rose-500/20 transition-all"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-xl font-bold text-white group-hover:text-rose-300">
+                你畫我猜
+              </h2>
+              <span className="text-2xl">🎨</span>
+            </div>
+            <p className="text-sm text-gray-300 mb-2">
+              輪流作畫、限時猜詞，最適合朋友語音一起玩的歡樂派對遊戲。
+            </p>
+            <p className="text-xs text-gray-500">
+              2–10 人適合｜內建題庫、計時回合、即時計分
+            </p>
+          </button>
+
           {/* 機密代號 */}
           <button
             onClick={() => router.push('/codenames')}
