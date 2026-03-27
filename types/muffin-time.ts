@@ -38,6 +38,13 @@ export interface MuffinPendingEffect {
   sourceActionCardId: string
 }
 
+/** 反擊時間窗（例如 5 秒內可反擊） */
+export interface MuffinCounterWindow {
+  targetParticipantId: string
+  /** UNIX timestamp (ms) 截止時間 */
+  expiresAt: number
+}
+
 export interface MuffinTimeGameData {
   room_id: string
   status: MuffinTimeStatus
@@ -66,8 +73,34 @@ export interface MuffinTimeGameData {
   /** 手牌剛達 10 張時，須先按鈕宣告 */
   muffin_needs_shout_seat?: number | null
 
+  /**
+   * 手牌「第一次」達成 10 張時，獲得宣告資格的座位。
+   * 若該座位手牌數再度變成不是 10，視為錯過機會，且不會再被設為 eligible。
+   */
+  muffin_eligible_seat?: number | null
+
+  /** 已成功喊過吸爆鬆餅的座位（僅一次機會） */
+  muffin_shout_used_seat?: number | null
+
+  /** 已永久失去靠 10 張獲勝資格的座位列表（例如沒在 10 張時按） */
+  muffin_disabled_seats?: number[]
+
   /** 被行動指定時，目標可打反擊 */
   pending_effect?: MuffinPendingEffect | null
+
+  /** 反擊時間窗（例如 5 秒內可使用反擊牌），僅在有 pending_effect 時存在 */
+  counter_window?: MuffinCounterWindow | null
+
+  /**
+   * 最後一次「打出行動牌」的同步事件（供全員桌面動畫）。
+   * seq 遞增，前端以 seq 變化觸發動畫。
+   */
+  last_play_seq?: number
+  last_card_play?: {
+    cardId: string
+    actorSeat: number
+    seq: number
+  } | null
 
   created_at?: unknown
   updated_at?: unknown

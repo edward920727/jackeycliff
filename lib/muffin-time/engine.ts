@@ -100,6 +100,10 @@ export function checkMuffinWinAtTurnStart(game: MuffinTimeGameData, currentSeat:
   const declared = game.muffin_declared
   if (pending == null || !declared) return false
   if (pending !== currentSeat) return false
+  // 僅允許已成功喊過的座位（避免未獲得資格就直接在回合開始結算）
+  if (game.muffin_shout_used_seat == null || game.muffin_shout_used_seat !== currentSeat) {
+    return false
+  }
   const pid = seatToParticipantId(game, currentSeat)
   if (!pid) return false
   const n = (game.hands[pid] || []).length
@@ -119,15 +123,32 @@ export function checkMuffinWinAtTurnStart(game: MuffinTimeGameData, currentSeat:
 function maybeSetMuffinShout(game: MuffinTimeGameData, seat: number) {
   const pid = seatToParticipantId(game, seat)
   if (!pid) return
-  if ((game.hands[pid] || []).length === MUFFIN_WIN_COUNT) {
-    game.muffin_needs_shout_seat = seat
-  }
+  const handSize = (game.hands[pid] || []).length
+  if (handSize !== MUFFIN_WIN_COUNT) return
+
+  // 若此座位已被永久禁用（錯過一次機會），則不再給資格
+  const disabled = new Set(game.muffin_disabled_seats || [])
+  if (disabled.has(seat)) return
+
+  // 若已經有其他候選座位，也不覆蓋（保留最早觸發者）
+  if (game.muffin_eligible_seat != null && game.muffin_eligible_seat !== seat) return
+
+  game.muffin_eligible_seat = seat
+  game.muffin_needs_shout_seat = seat
 }
 
 function clearMuffinShoutIfNotTen(game: MuffinTimeGameData, seat: number) {
   const pid = seatToParticipantId(game, seat)
   if (!pid) return
-  if ((game.hands[pid] || []).length !== MUFFIN_WIN_COUNT) {
+  const handSize = (game.hands[pid] || []).length
+  if (handSize !== MUFFIN_WIN_COUNT) {
+    // 若本來是候選座位，現在手牌不再是 10，代表錯過唯一機會 → 永久失去靠 10 張獲勝資格
+    if (game.muffin_eligible_seat === seat) {
+      game.muffin_eligible_seat = null
+      const disabled = new Set(game.muffin_disabled_seats || [])
+      disabled.add(seat)
+      game.muffin_disabled_seats = Array.from(disabled)
+    }
     if (game.muffin_needs_shout_seat === seat) game.muffin_needs_shout_seat = null
   }
 }
@@ -305,7 +326,13 @@ export function createInitialGameState(
     muffin_pending_seat: null,
     muffin_declared: false,
     muffin_needs_shout_seat: null,
+    muffin_eligible_seat: null,
+    muffin_shout_used_seat: null,
+    muffin_disabled_seats: [],
     pending_effect: null,
+    counter_window: null,
+    last_play_seq: 0,
+    last_card_play: null,
     created_at: new Date(),
     updated_at: new Date(),
   }
@@ -565,12 +592,18 @@ export function playCounterCard(
 export function declareMuffinShout(game: MuffinTimeGameData, pid: string): MuffinTimeGameData {
   const seat = participantIdToSeat(game, pid)
   if (seat == null) throw new Error('找不到玩家')
-  if (game.muffin_needs_shout_seat !== seat) throw new Error('目前不需要宣告')
+  // 僅允許在「第一次達成 10 張且仍維持 10 張」時宣告
+  if (game.muffin_eligible_seat == null || game.muffin_eligible_seat !== seat) {
+    throw new Error('目前沒有吸爆鬆餅資格')
+  }
   if ((game.hands[pid] || []).length !== MUFFIN_WIN_COUNT) throw new Error('手牌必須剛好 10 張')
 
+  // 記錄此座位已成功喊過一次，之後不再重新給資格
+  game.muffin_shout_used_seat = seat
   game.muffin_pending_seat = seat
   game.muffin_declared = true
   game.muffin_needs_shout_seat = null
+  game.muffin_eligible_seat = null
   pushLog(game, `${game.players.find((p) => p.participantId === pid)?.name} 大喊：吸爆鬆餅！`)
 
   advanceTurn(game)
