@@ -11,6 +11,7 @@ import {
   startPictionaryGame,
   subscribeToPictionaryGame,
 } from '@/lib/pictionary/firestore'
+import { pictionaryBackgroundStyle } from '@/lib/pictionary/constants'
 
 function PictionaryRoomContent() {
   const params = useParams()
@@ -95,11 +96,21 @@ function PictionaryRoomContent() {
   }
 
   if (loading) {
-    return <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">載入中...</div>
+    return (
+      <div
+        className="min-h-screen text-white flex items-center justify-center bg-black/60"
+        style={pictionaryBackgroundStyle}
+      >
+        載入中...
+      </div>
+    )
   }
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-950 text-white flex flex-col items-center justify-center gap-4 p-4">
+      <div
+        className="min-h-screen text-white flex flex-col items-center justify-center gap-4 p-4 bg-black/60"
+        style={pictionaryBackgroundStyle}
+      >
         <div className="max-w-lg rounded-xl border border-rose-600 bg-rose-950/40 p-4 text-sm">{error}</div>
         <button
           type="button"
@@ -114,7 +125,10 @@ function PictionaryRoomContent() {
   if (!game) return null
 
   return (
-    <div className="min-h-screen bg-gray-950 p-4 sm:p-6">
+    <div
+      className="min-h-screen text-white p-4 sm:p-6 bg-black/60"
+      style={pictionaryBackgroundStyle}
+    >
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-4">
           <button
@@ -164,7 +178,10 @@ export default function PictionaryRoomPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
+        <div
+          className="min-h-screen text-white flex items-center justify-center bg-black/60"
+          style={pictionaryBackgroundStyle}
+        >
           載入中...
         </div>
       }

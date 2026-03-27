@@ -13,6 +13,7 @@ import {
   submitPictionaryGuess,
   subscribeToPictionaryGame,
 } from '@/lib/pictionary/firestore'
+import { pictionaryBackgroundStyle } from '@/lib/pictionary/constants'
 
 function PictionaryGameContent() {
   const params = useParams()
@@ -156,7 +157,10 @@ function PictionaryGameContent() {
 
   if (subError) {
     return (
-      <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center p-4">
+      <div
+        className="min-h-screen text-white flex items-center justify-center p-4 bg-black/60"
+        style={pictionaryBackgroundStyle}
+      >
         <div className="max-w-md rounded-xl border border-rose-600 bg-rose-950/40 p-4 text-sm">{subError}</div>
       </div>
     )
@@ -164,14 +168,20 @@ function PictionaryGameContent() {
 
   if (!game || !currentRound) {
     return (
-      <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
+      <div
+        className="min-h-screen text-white flex items-center justify-center bg-black/60"
+        style={pictionaryBackgroundStyle}
+      >
         載入遊戲中...
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 p-4 sm:p-6">
+    <div
+      className="min-h-screen text-white p-4 sm:p-6 bg-black/60"
+      style={pictionaryBackgroundStyle}
+    >
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-4">
           <button
@@ -296,7 +306,10 @@ export default function PictionaryGamePage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
+        <div
+          className="min-h-screen text-white flex items-center justify-center bg-black/60"
+          style={pictionaryBackgroundStyle}
+        >
           載入中...
         </div>
       }

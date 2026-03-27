@@ -1,7 +1,9 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { pictionaryBackgroundStyle } from '@/lib/pictionary/constants'
 
 function getOrCreateClientId(): string {
   if (typeof window === 'undefined') return ''
@@ -55,7 +57,10 @@ export default function PictionaryLobbyPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-950 p-4">
+    <div
+      className="min-h-screen flex items-center justify-center p-4 bg-black/60"
+      style={pictionaryBackgroundStyle}
+    >
       <div className="w-full max-w-2xl rounded-3xl border border-gray-700 bg-gray-900/90 p-6 sm:p-8">
         <div className="flex items-center justify-between mb-4">
           <button
@@ -64,12 +69,12 @@ export default function PictionaryLobbyPage() {
           >
             ← 返回遊戲大廳
           </button>
-          <button
-            onClick={() => router.push('/pictionary/rooms')}
-            className="px-3 py-1.5 text-xs sm:text-sm rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700"
+          <Link
+            href="/pictionary/all-rooms"
+            className="px-3 py-1.5 text-xs sm:text-sm rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 inline-block"
           >
             查看房間列表
-          </button>
+          </Link>
         </div>
 
         <h1 className="text-2xl sm:text-3xl font-bold mb-1">你畫我猜（連線版）</h1>
