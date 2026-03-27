@@ -3,7 +3,10 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "clean": "node -e \"try { require('fs').rmSync('.next', { recursive: true, force: true }) } catch (e) {}\"",
+    "dev": "next dev --turbo",
+    "dev:webpack": "next dev",
+    "dev:clean": "npm run clean && next dev --turbo",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"

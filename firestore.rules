@@ -1,0 +1,26 @@
+rules_version = '2';
+
+// 開發／測試用：與本專案各遊戲 collection 對應。
+// 若你已在 Firebase 有自訂規則，請「合併」下列 match，不要只留其中一段，否則其他遊戲會無法讀寫。
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /games/{roomId} {
+      allow read, write: if true;
+    }
+    match /undercover_games/{roomId} {
+      allow read, write: if true;
+    }
+    match /undead_feast_games/{roomId} {
+      allow read, write: if true;
+    }
+    match /avalon_games/{roomId} {
+      allow read, write: if true;
+    }
+    match /pictionary_games/{roomId} {
+      allow read, write: if true;
+    }
+    match /wordBanks/{docId} {
+      allow read, write: if true;
+    }
+  }
+}
