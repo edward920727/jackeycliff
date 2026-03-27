@@ -1,5 +1,16 @@
 export type PictionaryStatus = 'lobby' | 'playing' | 'finished'
 
+/** most_points：比完所有回合分數最高；first_to_score：任一玩家先達 targetScore 分即結束 */
+export type PictionaryWinMode = 'most_points' | 'first_to_score'
+
+export interface StartPictionaryGameOptions {
+  maxRounds: number
+  winMode: PictionaryWinMode
+  /** 先達幾分（first_to_score 時必填；most_points 可傳任意預設） */
+  targetScore: number
+  wordBankId: string
+}
+
 export interface PictionaryParticipant {
   id: string
   name: string
@@ -30,6 +41,17 @@ export interface PictionaryRound {
   isRevealed?: boolean
 }
 
+export interface PictionaryGuessLogEntry {
+  id: string
+  roundNumber: number
+  participantId: string
+  name: string
+  /** 猜錯時為內容；猜中時不顯示文字 */
+  text?: string
+  isCorrect: boolean
+  at?: any
+}
+
 export interface PictionaryGameData {
   room_id: string
   status: PictionaryStatus
@@ -39,6 +61,16 @@ export interface PictionaryGameData {
   /** 作畫者尚未放開筆時的即時筆跡（節流同步給其他人看） */
   strokeInProgress?: DrawStroke | null
   maxRounds: number
+  /** 獲勝方式；未寫入的舊房間視為 most_points */
+  winMode?: PictionaryWinMode
+  /** 先達幾分結束（僅 first_to_score 時使用） */
+  targetScore?: number
+  /** 題庫 id（如 general、food） */
+  wordBankId?: string
+  /** 本局已出現過的題目（同一局內不重複，題庫用盡後才重複） */
+  used_words?: string[]
+  /** 本回合猜詞紀錄（猜錯顯示內容；猜中只顯示「猜中」不顯示答案） */
+  guess_log?: PictionaryGuessLogEntry[]
   created_at?: any
   updated_at?: any
 }

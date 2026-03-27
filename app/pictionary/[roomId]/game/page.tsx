@@ -15,8 +15,18 @@ import {
   subscribeToPictionaryGame,
 } from '@/lib/pictionary/firestore'
 import { pictionaryBackgroundStyle } from '@/lib/pictionary/constants'
+import { getWordBankLabel } from '@/lib/pictionary/wordBanks'
 
 const STROKE_SYNC_MS = 100
+
+function guessLogAtMs(at: unknown): number {
+  if (!at) return 0
+  const v = at as { toDate?: () => Date; toMillis?: () => number }
+  if (typeof v.toMillis === 'function') return v.toMillis()
+  if (typeof v.toDate === 'function') return v.toDate().getTime()
+  if (at instanceof Date) return at.getTime()
+  return new Date(at as string | number).getTime()
+}
 
 function drawStrokePath(ctx: CanvasRenderingContext2D, stroke: { points: DrawPoint[]; color: string; width: number }) {
   if (stroke.points.length < 2) return
@@ -82,6 +92,13 @@ function PictionaryGameContent() {
     const passed = Math.floor((Date.now() - startedAt) / 1000)
     return Math.max(0, currentRound.durationSeconds - passed)
   }, [currentRound, game?.updated_at])
+
+  const roundGuessLog = useMemo(() => {
+    if (!currentRound || !game?.guess_log?.length) return []
+    return [...game.guess_log]
+      .filter((e) => e.roundNumber === currentRound.roundNumber)
+      .sort((a, b) => guessLogAtMs(a.at) - guessLogAtMs(b.at))
+  }, [game?.guess_log, currentRound?.roundNumber])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -242,10 +259,16 @@ function PictionaryGameContent() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="lg:col-span-2 rounded-2xl border border-gray-800 bg-gray-900 p-4">
-            <div className="flex flex-wrap justify-between gap-2 mb-3 text-sm">
+            <div className="flex flex-wrap justify-between gap-2 mb-2 text-sm">
               <div>回合：{currentRound.roundNumber} / {game.maxRounds}</div>
               <div>作畫者：<span className="text-rose-300 font-semibold">{currentRound.drawerName}</span></div>
               <div>剩餘：<span className="text-amber-300 font-semibold">{timeLeft}s</span></div>
+            </div>
+            <div className="mb-3 text-xs text-gray-400">
+              {game.winMode === 'first_to_score'
+                ? `獲勝：先達 ${game.targetScore ?? 5} 分 · `
+                : '獲勝：比完回合分數最高 · '}
+              題庫：{getWordBankLabel(game.wordBankId ?? 'general')}
             </div>
             <div className="mb-3 text-sm text-gray-300">
               {isDrawer || currentRound.isRevealed ? `題目：${currentRound.word}` : '題目：？？？'}
@@ -280,7 +303,8 @@ function PictionaryGameContent() {
                   </button>
                   <button
                     onClick={() => nextPictionaryRound(roomId)}
-                    className="rounded-lg bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 text-sm font-semibold"
+                    disabled={game.status === 'finished'}
+                    className="rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:bg-gray-700 disabled:opacity-60 px-3 py-1.5 text-sm font-semibold"
                   >
                     下一回合
                   </button>
@@ -318,6 +342,31 @@ function PictionaryGameContent() {
 
             <p className="text-xs text-gray-400 mt-2">{message}</p>
 
+            <h3 className="font-semibold mt-4 mb-2">本回合猜詞紀錄</h3>
+            <div className="max-h-44 overflow-y-auto rounded-lg border border-gray-800 bg-gray-950/80 p-2 space-y-1.5 text-xs mb-1">
+              {roundGuessLog.length === 0 ? (
+                <p className="text-gray-500">尚無紀錄</p>
+              ) : (
+                roundGuessLog.map((entry) => (
+                  <div key={entry.id} className="leading-snug">
+                    {entry.isCorrect ? (
+                      <span>
+                        <span className="text-emerald-400 font-medium">{entry.name}</span>
+                        <span className="text-gray-300"> 猜中了</span>
+                        <span className="text-gray-500">（答案已隱藏）</span>
+                      </span>
+                    ) : (
+                      <span>
+                        <span className="text-slate-300">{entry.name}</span>
+                        <span className="text-gray-500">：</span>
+                        <span className="text-slate-100">{entry.text}</span>
+                      </span>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
             <h3 className="font-semibold mt-5 mb-2">分數榜</h3>
             <ul className="space-y-2 text-sm">
               {game.participants
@@ -338,7 +387,9 @@ function PictionaryGameContent() {
 
             {game.status === 'finished' && (
               <p className="mt-3 text-xs text-amber-300">
-                遊戲已結束，房主可按「回到大廳重開」。
+                {game.winMode === 'first_to_score'
+                  ? '已有玩家達到目標分數，遊戲結束。房主可按「回到大廳重開」。'
+                  : '遊戲已結束，房主可按「回到大廳重開」。'}
               </p>
             )}
             {me && <p className="mt-3 text-xs text-gray-500">你的分數：{me.score}</p>}

@@ -2,6 +2,7 @@ import {
   arrayUnion,
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -14,9 +15,16 @@ import { db } from '../firebase'
 import type {
   DrawStroke,
   PictionaryGameData,
+  PictionaryGuessLogEntry,
   PictionaryParticipant,
   PictionaryRound,
+  StartPictionaryGameOptions,
 } from '@/types/pictionary'
+import {
+  DEFAULT_WORD_BANK_ID,
+  isValidWordBankId,
+  pickWordExcluding,
+} from '@/lib/pictionary/wordBanks'
 
 const COLLECTION_NAME = 'pictionary_games'
 
@@ -50,23 +58,9 @@ function toMillis(value: unknown): number {
   return new Date(value as string | number).getTime()
 }
 
-const WORDS = [
-  '貓咪',
-  '披薩',
-  '火山',
-  '摩天輪',
-  '太空人',
-  '恐龍',
-  '雨傘',
-  '蛋糕',
-  '校車',
-  '城堡',
-  '吉他',
-  '章魚',
-]
-
-function randomWord(): string {
-  return WORDS[Math.floor(Math.random() * WORDS.length)]
+function clamp(n: number, min: number, max: number): number {
+  if (!Number.isFinite(n)) return min
+  return Math.min(max, Math.max(min, n))
 }
 
 function nextDrawer(participants: PictionaryParticipant[], roundNumber: number): PictionaryParticipant {
@@ -74,13 +68,21 @@ function nextDrawer(participants: PictionaryParticipant[], roundNumber: number):
   return participants[idx]
 }
 
-function createRound(participants: PictionaryParticipant[], roundNumber: number): PictionaryRound {
+function newGuessLogId(): string {
+  return `g_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
+}
+
+function createRound(
+  participants: PictionaryParticipant[],
+  roundNumber: number,
+  word: string
+): PictionaryRound {
   const drawer = nextDrawer(participants, roundNumber)
   return {
     roundNumber,
     drawerId: drawer.id,
     drawerName: drawer.name,
-    word: randomWord(),
+    word,
     startedAt: new Date(),
     durationSeconds: 60,
     solvedById: null,
@@ -131,19 +133,36 @@ export async function joinPictionaryRoom(
   })
 }
 
-export async function startPictionaryGame(roomId: string): Promise<void> {
+export async function startPictionaryGame(
+  roomId: string,
+  options: StartPictionaryGameOptions
+): Promise<void> {
   const ref = doc(db, COLLECTION_NAME, roomId)
   const snap = await getDoc(ref)
   if (!snap.exists()) throw new Error('房間不存在')
   const data = snap.data() as PictionaryGameData
   if (data.participants.length < 2) throw new Error('至少需要 2 位玩家')
 
+  const maxRounds = clamp(options.maxRounds, 1, 30)
+  const winMode = options.winMode
+  const targetScore = clamp(options.targetScore, 1, 99)
+  const wordBankId = isValidWordBankId(options.wordBankId) ? options.wordBankId : DEFAULT_WORD_BANK_ID
+
+  const used: string[] = []
+  const word1 = pickWordExcluding(used, wordBankId)
+
   await updateDoc(ref, {
     status: 'playing',
+    maxRounds,
+    winMode,
+    targetScore,
+    wordBankId,
     participants: data.participants.map((p) => ({ ...p, score: 0 })),
-    currentRound: createRound(data.participants, 1),
+    currentRound: createRound(data.participants, 1, word1),
+    used_words: [word1],
     strokes: [],
     strokeInProgress: null,
+    guess_log: [],
     updated_at: new Date(),
   })
 }
@@ -204,7 +223,26 @@ export async function submitPictionaryGuess(
   const round = data.currentRound
   if (!round) return { correct: false }
   if (round.solvedById) return { correct: false }
-  if (guessed.trim() !== round.word.trim()) return { correct: false }
+
+  const trimmed = guessed.trim()
+  const participantName = data.participants.find((p) => p.id === participantId)?.name || '玩家'
+
+  if (trimmed !== round.word.trim()) {
+    const wrong: PictionaryGuessLogEntry = {
+      id: newGuessLogId(),
+      roundNumber: round.roundNumber,
+      participantId,
+      name: participantName,
+      text: trimmed,
+      isCorrect: false,
+      at: new Date(),
+    }
+    await updateDoc(ref, {
+      guess_log: arrayUnion(wrong),
+      updated_at: new Date(),
+    })
+    return { correct: false }
+  }
 
   const scorer = data.participants.find((p) => p.id === participantId)
   const updatedParticipants = data.participants.map((p) => {
@@ -214,6 +252,25 @@ export async function submitPictionaryGuess(
     return p
   })
 
+  const winMode = data.winMode ?? 'most_points'
+  const targetScore = data.targetScore ?? 5
+  let nextStatus = data.status
+  if (winMode === 'first_to_score') {
+    const maxScore = Math.max(0, ...updatedParticipants.map((p) => p.score))
+    if (maxScore >= targetScore) {
+      nextStatus = 'finished'
+    }
+  }
+
+  const correct: PictionaryGuessLogEntry = {
+    id: newGuessLogId(),
+    roundNumber: round.roundNumber,
+    participantId,
+    name: participantName,
+    isCorrect: true,
+    at: new Date(),
+  }
+
   await updateDoc(ref, {
     participants: updatedParticipants,
     currentRound: {
@@ -222,6 +279,8 @@ export async function submitPictionaryGuess(
       solvedByName: scorer?.name || '玩家',
       isRevealed: true,
     },
+    guess_log: arrayUnion(correct),
+    status: nextStatus,
     updated_at: new Date(),
   })
 
@@ -233,6 +292,7 @@ export async function nextPictionaryRound(roomId: string): Promise<void> {
   const snap = await getDoc(ref)
   if (!snap.exists()) throw new Error('房間不存在')
   const data = snap.data() as PictionaryGameData
+  if (data.status === 'finished') return
   if (!data.currentRound) return
 
   const nextRoundNumber = data.currentRound.roundNumber + 1
@@ -249,10 +309,19 @@ export async function nextPictionaryRound(roomId: string): Promise<void> {
     return
   }
 
+  const usedArr = [...(data.used_words || [])]
+  if (data.currentRound?.word && !usedArr.includes(data.currentRound.word)) {
+    usedArr.push(data.currentRound.word)
+  }
+  const bankId = data.wordBankId ?? DEFAULT_WORD_BANK_ID
+  const nextWord = pickWordExcluding(usedArr, bankId)
+
   await updateDoc(ref, {
-    currentRound: createRound(data.participants, nextRoundNumber),
+    currentRound: createRound(data.participants, nextRoundNumber, nextWord),
+    used_words: [...usedArr, nextWord],
     strokes: [],
     strokeInProgress: null,
+    guess_log: [],
     updated_at: new Date(),
   })
 }
@@ -269,6 +338,11 @@ export async function resetPictionaryToLobby(roomId: string): Promise<void> {
     currentRound: null,
     strokes: [],
     strokeInProgress: null,
+    used_words: [],
+    guess_log: [],
+    winMode: deleteField(),
+    targetScore: deleteField(),
+    wordBankId: deleteField(),
     updated_at: new Date(),
   })
 }

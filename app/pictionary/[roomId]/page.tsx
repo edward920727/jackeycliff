@@ -2,7 +2,8 @@
 
 import { Suspense, useEffect, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
-import type { PictionaryGameData } from '@/types/pictionary'
+import type { PictionaryGameData, PictionaryWinMode } from '@/types/pictionary'
+import { DEFAULT_WORD_BANK_ID, WORD_BANK_OPTIONS } from '@/lib/pictionary/wordBanks'
 import {
   createPictionaryRoom,
   formatPictionaryFirestoreError,
@@ -28,6 +29,10 @@ function PictionaryRoomContent() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isStarting, setIsStarting] = useState(false)
+  const [maxRounds, setMaxRounds] = useState(6)
+  const [winMode, setWinMode] = useState<PictionaryWinMode>('most_points')
+  const [targetScore, setTargetScore] = useState(5)
+  const [wordBankId, setWordBankId] = useState(DEFAULT_WORD_BANK_ID)
 
   useEffect(() => {
     if (!pid) {
@@ -88,7 +93,12 @@ function PictionaryRoomContent() {
     if (!isHost) return
     try {
       setIsStarting(true)
-      await startPictionaryGame(roomId)
+      await startPictionaryGame(roomId, {
+        maxRounds,
+        winMode,
+        targetScore,
+        wordBankId,
+      })
     } catch (err: any) {
       alert(err.message || '開始失敗')
       setIsStarting(false)
@@ -156,6 +166,69 @@ function PictionaryRoomContent() {
               </div>
             ))}
           </div>
+
+          {isHost ? (
+            <div className="space-y-4 mb-5 rounded-xl border border-gray-800 bg-gray-950/80 p-4">
+              <p className="text-sm font-medium text-gray-200">開局設定（僅房主）</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="flex flex-col gap-1 text-sm">
+                  <span className="text-gray-400">回合數</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={30}
+                    value={maxRounds}
+                    onChange={(e) => {
+                      const v = parseInt(e.target.value, 10)
+                      setMaxRounds(Number.isFinite(v) ? v : 6)
+                    }}
+                    className="rounded-lg border border-gray-700 bg-gray-900 px-3 py-2"
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-sm">
+                  <span className="text-gray-400">獲勝方式</span>
+                  <select
+                    value={winMode}
+                    onChange={(e) => setWinMode(e.target.value as PictionaryWinMode)}
+                    className="rounded-lg border border-gray-700 bg-gray-900 px-3 py-2"
+                  >
+                    <option value="most_points">比完所有回合，分數最高者勝</option>
+                    <option value="first_to_score">先達指定分數者勝</option>
+                  </select>
+                </label>
+                {winMode === 'first_to_score' && (
+                  <label className="flex flex-col gap-1 text-sm sm:col-span-2">
+                    <span className="text-gray-400">目標分數（任一人達到即結束）</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={99}
+                      value={targetScore}
+                      onChange={(e) => {
+                        const v = parseInt(e.target.value, 10)
+                        setTargetScore(Number.isFinite(v) ? v : 5)
+                      }}
+                      className="max-w-[12rem] rounded-lg border border-gray-700 bg-gray-900 px-3 py-2"
+                    />
+                  </label>
+                )}
+                <label className="flex flex-col gap-1 text-sm sm:col-span-2">
+                  <span className="text-gray-400">題庫</span>
+                  <select
+                    value={wordBankId}
+                    onChange={(e) => setWordBankId(e.target.value)}
+                    className="rounded-lg border border-gray-700 bg-gray-900 px-3 py-2"
+                  >
+                    {WORD_BANK_OPTIONS.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            </div>
+          ) : null}
 
           {isHost ? (
             <button
