@@ -129,6 +129,25 @@ export default function GameHub() {
               4–8 人適合｜陣營對抗、策略推理、派對同樂
             </p>
           </button>
+
+          {/* 吸爆鬆餅 */}
+          <button
+            onClick={() => router.push('/muffin-time')}
+            className="group bg-gray-900/80 border border-gray-700 rounded-2xl p-4 sm:p-6 text-left hover:border-amber-500 hover:shadow-lg hover:shadow-amber-500/20 transition-all"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-xl font-bold text-white group-hover:text-amber-200">
+                吸爆鬆餅
+              </h2>
+              <span className="text-2xl">🥞</span>
+            </div>
+            <p className="text-sm text-gray-300 mb-2">
+              陷阱、行動與反擊交錯的混亂派對卡牌；手牌剛好 10 張時大喊「吸爆鬆餅」拼勝。
+            </p>
+            <p className="text-xs text-gray-500">
+              2–8 人｜線上簡化版、自創牌庫
+            </p>
+          </button>
         </div>
 
         <div className="mt-4 flex justify-center">

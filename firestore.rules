@@ -19,6 +19,9 @@ service cloud.firestore {
     match /pictionary_games/{roomId} {
       allow read, write: if true;
     }
+    match /muffin_time_games/{roomId} {
+      allow read, write: if true;
+    }
     match /wordBanks/{docId} {
       allow read, write: if true;
     }
