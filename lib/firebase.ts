@@ -1,6 +1,12 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app'
-import { getFirestore, Firestore } from 'firebase/firestore'
+import {
+  getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+  type Firestore,
+} from 'firebase/firestore'
 import { getAnalytics, Analytics } from 'firebase/analytics'
 
 // Your web app's Firebase configuration
@@ -26,8 +32,18 @@ if (getApps().length === 0) {
   app = getApps()[0]
 }
 
-// Initialize Firestore (works on both client and server)
-db = getFirestore(app)
+// Firestore：瀏覽器啟用 IndexedDB 離線快取；SSR 仍用記憶體快取
+if (typeof window !== 'undefined') {
+  try {
+    db = initializeFirestore(app, {
+      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+    })
+  } catch {
+    db = getFirestore(app)
+  }
+} else {
+  db = getFirestore(app)
+}
 
 // Initialize Analytics only in browser
 if (typeof window !== 'undefined') {

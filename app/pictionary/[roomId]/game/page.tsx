@@ -3,6 +3,7 @@
 import { FormEvent, PointerEvent, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import type { DrawPoint, DrawStroke, PictionaryGameData } from '@/types/pictionary'
+import type { PictionarySnapshotMeta } from '@/lib/pictionary/firestore'
 import {
   clearPictionaryCanvas,
   finalizePictionaryStroke,
@@ -14,7 +15,15 @@ import {
   submitPictionaryGuess,
   subscribeToPictionaryGame,
 } from '@/lib/pictionary/firestore'
+import { PictionaryConnectionBadge } from '@/lib/pictionary/ConnectionBadge'
 import { pictionaryBackgroundStyle } from '@/lib/pictionary/constants'
+import {
+  getSoundEnabled,
+  playGameFinishedChime,
+  playRoundChangeChime,
+  setSoundEnabledStorage,
+} from '@/lib/pictionary/roundFeedback'
+import { useNavigatorOnline } from '@/lib/pictionary/useNavigatorOnline'
 import { getWordBankLabel } from '@/lib/pictionary/wordBanks'
 
 const STROKE_SYNC_MS = 100
@@ -51,10 +60,13 @@ function PictionaryGameContent() {
   const role = (searchParams.get('role') || 'player') as 'host' | 'player'
 
   const [game, setGame] = useState<PictionaryGameData | null>(null)
+  const [fsMeta, setFsMeta] = useState<PictionarySnapshotMeta | null>(null)
   const [subError, setSubError] = useState<string | null>(null)
   const [guess, setGuess] = useState('')
   const [message, setMessage] = useState('開始猜詞吧！')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [soundEnabled, setSoundEnabled] = useState(true)
+  const [roundBanner, setRoundBanner] = useState<string | null>(null)
   /** 每秒遞增，讓剩餘時間依 Date.now() 重算（僅依賴 Firestore 更新時倒數會凍結） */
   const [timerTick, setTimerTick] = useState(0)
 
@@ -67,6 +79,15 @@ function PictionaryGameContent() {
   const lastStrokeSyncRef = useRef(0)
   const pathRef = useRef<DrawPoint[]>([])
 
+  const navigatorOnline = useNavigatorOnline()
+
+  useEffect(() => {
+    setSoundEnabled(getSoundEnabled())
+  }, [])
+
+  const prevRoundRef = useRef<number | null>(null)
+  const prevStatusRef = useRef<string | null>(null)
+
   useEffect(() => {
     if (!pid) {
       router.push('/pictionary')
@@ -74,7 +95,8 @@ function PictionaryGameContent() {
     }
     const unsub = subscribeToPictionaryGame(
       roomId,
-      (data) => {
+      (data, meta) => {
+        if (meta) setFsMeta(meta)
         if (!data) return
         setGame(data)
         setSubError(null)
@@ -93,6 +115,34 @@ function PictionaryGameContent() {
   const me = useMemo(() => game?.participants.find((p) => p.id === pid), [game?.participants, pid])
   const isDrawer = currentRound?.drawerId === pid
   const isHost = role === 'host'
+
+  useEffect(() => {
+    if (!soundEnabled) return
+    const rn = currentRound?.roundNumber
+    if (rn == null) return
+    const prev = prevRoundRef.current
+    prevRoundRef.current = rn
+    if (prev == null) return
+    if (prev === rn) return
+    playRoundChangeChime()
+    setRoundBanner('換題')
+    const t = window.setTimeout(() => setRoundBanner(null), 2600)
+    return () => window.clearTimeout(t)
+  }, [currentRound?.roundNumber, soundEnabled])
+
+  useEffect(() => {
+    if (!soundEnabled || !game) return
+    const st = game.status
+    const prev = prevStatusRef.current
+    prevStatusRef.current = st
+    if (prev == null) return
+    if (prev === 'playing' && st === 'finished') {
+      playGameFinishedChime()
+      setRoundBanner('遊戲結束')
+      const t = window.setTimeout(() => setRoundBanner(null), 2600)
+      return () => window.clearTimeout(t)
+    }
+  }, [game?.status, soundEnabled])
 
   const timeLeft = useMemo(() => {
     if (!currentRound?.startedAt) return 0
@@ -270,10 +320,13 @@ function PictionaryGameContent() {
   if (!game || !currentRound) {
     return (
       <div
-        className="min-h-screen text-white flex items-center justify-center bg-black/60"
+        className="min-h-screen text-white flex flex-col items-center justify-center gap-3 bg-black/60 p-4"
         style={pictionaryBackgroundStyle}
       >
-        載入遊戲中...
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <PictionaryConnectionBadge navigatorOnline={navigatorOnline} fsMeta={fsMeta} />
+        </div>
+        <p>載入遊戲中...</p>
       </div>
     )
   }
@@ -283,15 +336,40 @@ function PictionaryGameContent() {
       className="min-h-screen text-white p-4 sm:p-6 bg-black/60"
       style={pictionaryBackgroundStyle}
     >
+      {roundBanner ? (
+        <div
+          className="fixed left-1/2 top-16 z-50 max-w-[90vw] -translate-x-1/2 rounded-lg border border-rose-500/60 bg-gray-950/95 px-4 py-2 text-center text-sm text-rose-100 shadow-lg"
+          role="status"
+          aria-live="polite"
+        >
+          {roundBanner}
+        </div>
+      ) : null}
       <div className="max-w-6xl mx-auto">
-        <div className="flex items-center justify-between mb-4">
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <button
             onClick={() => router.push('/pictionary')}
-            className="px-3 py-1.5 rounded-lg border border-gray-700 bg-gray-900 hover:bg-gray-800 text-xs sm:text-sm"
+            className="px-3 py-1.5 rounded-lg border border-gray-700 bg-gray-900 hover:bg-gray-800 text-xs sm:text-sm w-fit"
           >
             ← 返回大廳
           </button>
-          <div className="font-mono text-xs sm:text-sm">房號：{roomId}</div>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <PictionaryConnectionBadge navigatorOnline={navigatorOnline} fsMeta={fsMeta} />
+            <button
+              type="button"
+              onClick={() => {
+                const next = !soundEnabled
+                setSoundEnabled(next)
+                setSoundEnabledStorage(next)
+              }}
+              className="rounded-lg border border-gray-600 bg-gray-900 px-2 py-1 text-[10px] sm:text-xs text-gray-300 hover:bg-gray-800"
+              aria-pressed={soundEnabled}
+              aria-label={soundEnabled ? '關閉換題音效' : '開啟換題音效'}
+            >
+              {soundEnabled ? '音效：開' : '音效：關'}
+            </button>
+            <div className="font-mono text-xs sm:text-sm">房號：{roomId}</div>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

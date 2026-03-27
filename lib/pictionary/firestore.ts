@@ -446,20 +446,30 @@ export async function resetPictionaryToLobby(roomId: string): Promise<void> {
   })
 }
 
+export type PictionarySnapshotMeta = {
+  fromCache: boolean
+  hasPendingWrites: boolean
+}
+
 export function subscribeToPictionaryGame(
   roomId: string,
-  callback: (game: PictionaryGameData | null) => void,
+  callback: (game: PictionaryGameData | null, meta?: PictionarySnapshotMeta) => void,
   onError?: (err: unknown) => void
 ): Unsubscribe {
   const ref = doc(db, COLLECTION_NAME, roomId)
   return onSnapshot(
     ref,
+    { includeMetadataChanges: true },
     (snap) => {
+      const meta: PictionarySnapshotMeta = {
+        fromCache: snap.metadata.fromCache,
+        hasPendingWrites: snap.metadata.hasPendingWrites,
+      }
       if (!snap.exists()) {
-        callback(null)
+        callback(null, meta)
         return
       }
-      callback(snap.data() as PictionaryGameData)
+      callback(snap.data() as PictionaryGameData, meta)
     },
     (error) => {
       console.error('subscribeToPictionaryGame', error)

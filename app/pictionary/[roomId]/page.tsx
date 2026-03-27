@@ -3,7 +3,10 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import type { PictionaryGameData, PictionaryWinMode } from '@/types/pictionary'
+import type { PictionarySnapshotMeta } from '@/lib/pictionary/firestore'
+import { PictionaryConnectionBadge } from '@/lib/pictionary/ConnectionBadge'
 import { DEFAULT_WORD_BANK_ID, WORD_BANK_OPTIONS } from '@/lib/pictionary/wordBanks'
+import { useNavigatorOnline } from '@/lib/pictionary/useNavigatorOnline'
 import {
   createPictionaryRoom,
   formatPictionaryFirestoreError,
@@ -26,6 +29,7 @@ function PictionaryRoomContent() {
   const isHost = role === 'host'
 
   const [game, setGame] = useState<PictionaryGameData | null>(null)
+  const [fsMeta, setFsMeta] = useState<PictionarySnapshotMeta | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isStarting, setIsStarting] = useState(false)
@@ -33,6 +37,8 @@ function PictionaryRoomContent() {
   const [winMode, setWinMode] = useState<PictionaryWinMode>('most_points')
   const [targetScore, setTargetScore] = useState(5)
   const [wordBankId, setWordBankId] = useState(DEFAULT_WORD_BANK_ID)
+
+  const navigatorOnline = useNavigatorOnline()
 
   useEffect(() => {
     if (!pid) {
@@ -61,9 +67,16 @@ function PictionaryRoomContent() {
           await joinPictionaryRoom(roomId, { id: pid, name, isHost })
         }
 
-        unsub = subscribeToPictionaryGame(roomId, setGame, (err) => {
-          setError(formatPictionaryFirestoreError(err))
-        })
+        unsub = subscribeToPictionaryGame(
+          roomId,
+          (data, meta) => {
+            if (meta) setFsMeta(meta)
+            setGame(data)
+          },
+          (err) => {
+            setError(formatPictionaryFirestoreError(err))
+          }
+        )
       } catch (err: unknown) {
         setError(formatPictionaryFirestoreError(err))
       } finally {
@@ -140,14 +153,17 @@ function PictionaryRoomContent() {
       style={pictionaryBackgroundStyle}
     >
       <div className="max-w-4xl mx-auto">
-        <div className="flex items-center justify-between mb-4">
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <button
             onClick={() => router.push('/pictionary')}
-            className="px-3 py-1.5 rounded-lg border border-gray-700 bg-gray-900 hover:bg-gray-800 text-xs sm:text-sm"
+            className="px-3 py-1.5 rounded-lg border border-gray-700 bg-gray-900 hover:bg-gray-800 text-xs sm:text-sm w-fit"
           >
             ← 返回大廳
           </button>
-          <div className="font-mono text-sm tracking-widest">{roomId}</div>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <PictionaryConnectionBadge navigatorOnline={navigatorOnline} fsMeta={fsMeta} />
+            <div className="font-mono text-sm tracking-widest">{roomId}</div>
+          </div>
         </div>
 
         <div className="rounded-2xl border border-gray-800 bg-gray-900 p-5">
