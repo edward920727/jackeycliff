@@ -55,6 +55,11 @@ function PictionaryGameContent() {
   const [guess, setGuess] = useState('')
   const [message, setMessage] = useState('開始猜詞吧！')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  /** 每秒遞增，讓剩餘時間依 Date.now() 重算（僅依賴 Firestore 更新時倒數會凍結） */
+  const [timerTick, setTimerTick] = useState(0)
+
+  /** 本回合是否已因計時歸零嘗試換題（避免每秒重複呼叫） */
+  const timerExpiredHandledRoundRef = useRef<number | null>(null)
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const drawingRef = useRef(false)
@@ -79,6 +84,11 @@ function PictionaryGameContent() {
     return () => unsub()
   }, [roomId, pid, router])
 
+  useEffect(() => {
+    const id = window.setInterval(() => setTimerTick((n) => n + 1), 1000)
+    return () => window.clearInterval(id)
+  }, [])
+
   const currentRound = game?.currentRound
   const me = useMemo(() => game?.participants.find((p) => p.id === pid), [game?.participants, pid])
   const isDrawer = currentRound?.drawerId === pid
@@ -91,7 +101,19 @@ function PictionaryGameContent() {
       : new Date(currentRound.startedAt).getTime()
     const passed = Math.floor((Date.now() - startedAt) / 1000)
     return Math.max(0, currentRound.durationSeconds - passed)
-  }, [currentRound, game?.updated_at])
+  }, [currentRound, timerTick])
+
+  useEffect(() => {
+    const round = game?.currentRound
+    if (!game || game.status !== 'playing' || !round) return
+    if (timeLeft > 0) return
+    const rn = round.roundNumber
+    if (timerExpiredHandledRoundRef.current === rn) return
+    timerExpiredHandledRoundRef.current = rn
+    void nextPictionaryRound(roomId, { ifCurrentRoundNumber: rn }).catch(() => {
+      timerExpiredHandledRoundRef.current = null
+    })
+  }, [timeLeft, timerTick, game?.status, game?.currentRound?.roundNumber, roomId])
 
   const roundGuessLog = useMemo(() => {
     if (!currentRound || !game?.guess_log?.length) return []
@@ -223,7 +245,8 @@ function PictionaryGameContent() {
     try {
       const result = await submitPictionaryGuess(roomId, pid, guess.trim())
       if (result.correct && result.rank != null && result.points != null) {
-        setMessage(`猜中了！第 ${result.rank} 位答對，你與作畫者各得 ${result.points} 分。`)
+        const tail = result.advancedRound ? ' 全員已答對，已進入下一回合。' : ''
+        setMessage(`猜中了！第 ${result.rank} 位答對，你與作畫者各得 ${result.points} 分。${tail}`)
       } else {
         setMessage(result.correct ? '猜中了！' : '猜錯了，再試試看！')
       }
@@ -285,7 +308,7 @@ function PictionaryGameContent() {
               題庫：{getWordBankLabel(game.wordBankId ?? 'general')}
             </div>
             <p className="mb-3 text-xs text-gray-500">
-              答對順序：第 1 位 5 分、第 2 位 4 分、第 3 位 3 分…（作畫者與答對者同分）；公開答案前其他人仍可搶答。
+              答對順序：第 1 位 5 分、第 2 位 4 分、第 3 位 3 分…（作畫者與答對者同分）；公開答案前其他人仍可搶答。所有人（作畫者除外）都答對，或倒數歸零時，會自動進入下一題。
             </p>
             <div className="mb-3 text-sm text-gray-300">
               {isDrawer || currentRound.isRevealed ? `題目：${currentRound.word}` : '題目：？？？'}

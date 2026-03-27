@@ -7,6 +7,7 @@ import {
   getDoc,
   getDocs,
   onSnapshot,
+  runTransaction,
   setDoc,
   type Unsubscribe,
   updateDoc,
@@ -230,7 +231,7 @@ export async function submitPictionaryGuess(
   roomId: string,
   participantId: string,
   guessed: string
-): Promise<{ correct: boolean; rank?: number; points?: number }> {
+): Promise<{ correct: boolean; rank?: number; points?: number; advancedRound?: boolean }> {
   const ref = doc(db, COLLECTION_NAME, roomId)
   const snap = await getDoc(ref)
   if (!snap.exists()) throw new Error('房間不存在')
@@ -296,15 +297,74 @@ export async function submitPictionaryGuess(
     at: new Date(),
   }
 
+  const roundUpdateBase = {
+    ...round,
+    correctOrderIds: newOrder,
+    solvedById: round.solvedById ?? participantId,
+    solvedByName: round.solvedByName ?? scorer?.name ?? '玩家',
+    isRevealed: false,
+  }
+
+  if (nextStatus === 'finished') {
+    await updateDoc(ref, {
+      participants: updatedParticipants,
+      currentRound: roundUpdateBase,
+      guess_log: arrayUnion(correct),
+      status: 'finished',
+      updated_at: new Date(),
+    })
+    return { correct: true, rank, points: pts }
+  }
+
+  const guesserIds = data.participants.filter((p) => p.id !== round.drawerId).map((p) => p.id)
+  const allGuessersCorrect =
+    guesserIds.length > 0 && guesserIds.every((id) => newOrder.includes(id))
+
+  if (allGuessersCorrect) {
+    const nextRoundNumber = round.roundNumber + 1
+    const maxR = data.maxRounds || 6
+
+    if (nextRoundNumber > maxR) {
+      await updateDoc(ref, {
+        participants: updatedParticipants,
+        currentRound: {
+          ...round,
+          correctOrderIds: newOrder,
+          solvedById: round.solvedById ?? participantId,
+          solvedByName: round.solvedByName ?? scorer?.name ?? '玩家',
+          isRevealed: true,
+        },
+        guess_log: arrayUnion(correct),
+        status: 'finished',
+        strokeInProgress: null,
+        updated_at: new Date(),
+      })
+      return { correct: true, rank, points: pts }
+    }
+
+    const usedArr = [...(data.used_words || [])]
+    if (round.word && !usedArr.includes(round.word)) {
+      usedArr.push(round.word)
+    }
+    const bankId = data.wordBankId ?? DEFAULT_WORD_BANK_ID
+    const nextWord = pickWordExcluding(usedArr, bankId)
+
+    await updateDoc(ref, {
+      participants: updatedParticipants,
+      currentRound: createRound(updatedParticipants, nextRoundNumber, nextWord),
+      used_words: [...usedArr, nextWord],
+      strokes: [],
+      strokeInProgress: null,
+      guess_log: [],
+      status: 'playing',
+      updated_at: new Date(),
+    })
+    return { correct: true, rank, points: pts, advancedRound: true }
+  }
+
   await updateDoc(ref, {
     participants: updatedParticipants,
-    currentRound: {
-      ...round,
-      correctOrderIds: newOrder,
-      solvedById: round.solvedById ?? participantId,
-      solvedByName: round.solvedByName ?? scorer?.name ?? '玩家',
-      isRevealed: false,
-    },
+    currentRound: roundUpdateBase,
     guess_log: arrayUnion(correct),
     status: nextStatus,
     updated_at: new Date(),
@@ -313,42 +373,55 @@ export async function submitPictionaryGuess(
   return { correct: true, rank, points: pts }
 }
 
-export async function nextPictionaryRound(roomId: string): Promise<void> {
+/** 手動「下一回合」不傳 opts；計時器自動換題請傳 ifCurrentRoundNumber 避免多人同時推進兩次。 */
+export async function nextPictionaryRound(
+  roomId: string,
+  opts?: { ifCurrentRoundNumber?: number }
+): Promise<void> {
   const ref = doc(db, COLLECTION_NAME, roomId)
-  const snap = await getDoc(ref)
-  if (!snap.exists()) throw new Error('房間不存在')
-  const data = snap.data() as PictionaryGameData
-  if (data.status === 'finished') return
-  if (!data.currentRound) return
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(ref)
+    if (!snap.exists()) throw new Error('房間不存在')
+    const data = snap.data() as PictionaryGameData
+    if (data.status === 'finished') return
+    if (!data.currentRound) return
 
-  const nextRoundNumber = data.currentRound.roundNumber + 1
-  if (nextRoundNumber > (data.maxRounds || 6)) {
-    await updateDoc(ref, {
-      status: 'finished',
-      currentRound: {
-        ...data.currentRound,
-        isRevealed: true,
-      },
+    if (
+      opts?.ifCurrentRoundNumber != null &&
+      data.currentRound.roundNumber !== opts.ifCurrentRoundNumber
+    ) {
+      return
+    }
+
+    const nextRoundNumber = data.currentRound.roundNumber + 1
+    if (nextRoundNumber > (data.maxRounds || 6)) {
+      transaction.update(ref, {
+        status: 'finished',
+        currentRound: {
+          ...data.currentRound,
+          isRevealed: true,
+        },
+        strokeInProgress: null,
+        updated_at: new Date(),
+      })
+      return
+    }
+
+    const usedArr = [...(data.used_words || [])]
+    if (data.currentRound?.word && !usedArr.includes(data.currentRound.word)) {
+      usedArr.push(data.currentRound.word)
+    }
+    const bankId = data.wordBankId ?? DEFAULT_WORD_BANK_ID
+    const nextWord = pickWordExcluding(usedArr, bankId)
+
+    transaction.update(ref, {
+      currentRound: createRound(data.participants, nextRoundNumber, nextWord),
+      used_words: [...usedArr, nextWord],
+      strokes: [],
       strokeInProgress: null,
+      guess_log: [],
       updated_at: new Date(),
     })
-    return
-  }
-
-  const usedArr = [...(data.used_words || [])]
-  if (data.currentRound?.word && !usedArr.includes(data.currentRound.word)) {
-    usedArr.push(data.currentRound.word)
-  }
-  const bankId = data.wordBankId ?? DEFAULT_WORD_BANK_ID
-  const nextWord = pickWordExcluding(usedArr, bankId)
-
-  await updateDoc(ref, {
-    currentRound: createRound(data.participants, nextRoundNumber, nextWord),
-    used_words: [...usedArr, nextWord],
-    strokes: [],
-    strokeInProgress: null,
-    guess_log: [],
-    updated_at: new Date(),
   })
 }
 
