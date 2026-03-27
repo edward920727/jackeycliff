@@ -38,6 +38,8 @@ export interface PictionaryRound {
   durationSeconds: number
   solvedById?: string | null
   solvedByName?: string | null
+  /** 本回合依序答對的玩家 id（第 1 位分數最高）；舊資料可能僅有 solvedById */
+  correctOrderIds?: string[]
   isRevealed?: boolean
 }
 
@@ -49,6 +51,9 @@ export interface PictionaryGuessLogEntry {
   /** 猜錯時為內容；猜中時不顯示文字 */
   text?: string
   isCorrect: boolean
+  /** 猜中時：答對順位與得分（供紀錄顯示） */
+  rank?: number
+  points?: number
   at?: any
 }
 

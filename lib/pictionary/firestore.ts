@@ -72,6 +72,20 @@ function newGuessLogId(): string {
   return `g_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
 }
 
+/** 第 1 位答對分數最高，之後遞減；作畫者與答對者同額加分 */
+const POINTS_BY_CORRECT_ORDER = [5, 4, 3, 2, 1]
+
+export function pointsForCorrectOrder(rank: number): number {
+  if (rank < 1) return 1
+  return POINTS_BY_CORRECT_ORDER[rank - 1] ?? 1
+}
+
+function existingCorrectOrderIds(round: PictionaryRound): string[] {
+  if (round.correctOrderIds?.length) return round.correctOrderIds
+  if (round.solvedById) return [round.solvedById]
+  return []
+}
+
 function createRound(
   participants: PictionaryParticipant[],
   roundNumber: number,
@@ -87,6 +101,7 @@ function createRound(
     durationSeconds: 60,
     solvedById: null,
     solvedByName: null,
+    correctOrderIds: [],
     isRevealed: false,
   }
 }
@@ -215,14 +230,17 @@ export async function submitPictionaryGuess(
   roomId: string,
   participantId: string,
   guessed: string
-): Promise<{ correct: boolean }> {
+): Promise<{ correct: boolean; rank?: number; points?: number }> {
   const ref = doc(db, COLLECTION_NAME, roomId)
   const snap = await getDoc(ref)
   if (!snap.exists()) throw new Error('房間不存在')
   const data = snap.data() as PictionaryGameData
   const round = data.currentRound
   if (!round) return { correct: false }
-  if (round.solvedById) return { correct: false }
+  if (participantId === round.drawerId) return { correct: false }
+
+  const priorOrder = existingCorrectOrderIds(round)
+  if (priorOrder.includes(participantId)) return { correct: false }
 
   const trimmed = guessed.trim()
   const participantName = data.participants.find((p) => p.id === participantId)?.name || '玩家'
@@ -245,9 +263,12 @@ export async function submitPictionaryGuess(
   }
 
   const scorer = data.participants.find((p) => p.id === participantId)
+  const rank = priorOrder.length + 1
+  const pts = pointsForCorrectOrder(rank)
+
   const updatedParticipants = data.participants.map((p) => {
     if (p.id === participantId || p.id === round.drawerId) {
-      return { ...p, score: p.score + 1 }
+      return { ...p, score: p.score + pts }
     }
     return p
   })
@@ -262,12 +283,16 @@ export async function submitPictionaryGuess(
     }
   }
 
+  const newOrder = [...priorOrder, participantId]
+
   const correct: PictionaryGuessLogEntry = {
     id: newGuessLogId(),
     roundNumber: round.roundNumber,
     participantId,
     name: participantName,
     isCorrect: true,
+    rank,
+    points: pts,
     at: new Date(),
   }
 
@@ -275,16 +300,17 @@ export async function submitPictionaryGuess(
     participants: updatedParticipants,
     currentRound: {
       ...round,
-      solvedById: participantId,
-      solvedByName: scorer?.name || '玩家',
-      isRevealed: true,
+      correctOrderIds: newOrder,
+      solvedById: round.solvedById ?? participantId,
+      solvedByName: round.solvedByName ?? scorer?.name ?? '玩家',
+      isRevealed: false,
     },
     guess_log: arrayUnion(correct),
     status: nextStatus,
     updated_at: new Date(),
   })
 
-  return { correct: true }
+  return { correct: true, rank, points: pts }
 }
 
 export async function nextPictionaryRound(roomId: string): Promise<void> {

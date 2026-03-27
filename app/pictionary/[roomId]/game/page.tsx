@@ -100,6 +100,16 @@ function PictionaryGameContent() {
       .sort((a, b) => guessLogAtMs(a.at) - guessLogAtMs(b.at))
   }, [game?.guess_log, currentRound?.roundNumber])
 
+  const alreadyCorrectThisRound = useMemo(() => {
+    if (!currentRound || !pid) return false
+    const ids = currentRound.correctOrderIds?.length
+      ? currentRound.correctOrderIds
+      : currentRound.solvedById
+        ? [currentRound.solvedById]
+        : []
+    return ids.includes(pid)
+  }, [currentRound, pid])
+
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -212,7 +222,11 @@ function PictionaryGameContent() {
     setIsSubmitting(true)
     try {
       const result = await submitPictionaryGuess(roomId, pid, guess.trim())
-      setMessage(result.correct ? '猜中了！你和作畫者各得 1 分。' : '猜錯了，再試試看！')
+      if (result.correct && result.rank != null && result.points != null) {
+        setMessage(`猜中了！第 ${result.rank} 位答對，你與作畫者各得 ${result.points} 分。`)
+      } else {
+        setMessage(result.correct ? '猜中了！' : '猜錯了，再試試看！')
+      }
       setGuess('')
     } finally {
       setIsSubmitting(false)
@@ -270,6 +284,9 @@ function PictionaryGameContent() {
                 : '獲勝：比完回合分數最高 · '}
               題庫：{getWordBankLabel(game.wordBankId ?? 'general')}
             </div>
+            <p className="mb-3 text-xs text-gray-500">
+              答對順序：第 1 位 5 分、第 2 位 4 分、第 3 位 3 分…（作畫者與答對者同分）；公開答案前其他人仍可搶答。
+            </p>
             <div className="mb-3 text-sm text-gray-300">
               {isDrawer || currentRound.isRevealed ? `題目：${currentRound.word}` : '題目：？？？'}
             </div>
@@ -327,13 +344,19 @@ function PictionaryGameContent() {
               <input
                 value={guess}
                 onChange={(event) => setGuess(event.target.value)}
-                placeholder={isDrawer ? '你是作畫者，不能猜題' : '輸入你的猜測'}
-                disabled={isDrawer || !!currentRound.isRevealed}
+                placeholder={
+                  isDrawer
+                    ? '你是作畫者，不能猜題'
+                    : alreadyCorrectThisRound
+                      ? '你已在本回合答對'
+                      : '輸入你的猜測'
+                }
+                disabled={isDrawer || !!currentRound.isRevealed || alreadyCorrectThisRound}
                 className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm disabled:opacity-50"
               />
               <button
                 type="submit"
-                disabled={isSubmitting || isDrawer || !!currentRound.isRevealed}
+                disabled={isSubmitting || isDrawer || !!currentRound.isRevealed || alreadyCorrectThisRound}
                 className="w-full rounded-lg bg-purple-600 hover:bg-purple-500 disabled:bg-gray-700 px-3 py-2 text-sm font-semibold"
               >
                 送出猜測
@@ -353,6 +376,9 @@ function PictionaryGameContent() {
                       <span>
                         <span className="text-emerald-400 font-medium">{entry.name}</span>
                         <span className="text-gray-300"> 猜中了</span>
+                        {entry.rank != null && entry.points != null ? (
+                          <span className="text-amber-300/90">（第 {entry.rank} 位 · 各 +{entry.points} 分）</span>
+                        ) : null}
                         <span className="text-gray-500">（答案已隱藏）</span>
                       </span>
                     ) : (
