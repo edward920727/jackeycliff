@@ -4,16 +4,33 @@ import { FormEvent, PointerEvent, Suspense, useEffect, useMemo, useRef, useState
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import type { DrawPoint, DrawStroke, PictionaryGameData } from '@/types/pictionary'
 import {
-  appendPictionaryStroke,
   clearPictionaryCanvas,
+  finalizePictionaryStroke,
   formatPictionaryFirestoreError,
   nextPictionaryRound,
   resetPictionaryToLobby,
   revealPictionaryAnswer,
+  setStrokeInProgress,
   submitPictionaryGuess,
   subscribeToPictionaryGame,
 } from '@/lib/pictionary/firestore'
 import { pictionaryBackgroundStyle } from '@/lib/pictionary/constants'
+
+const STROKE_SYNC_MS = 100
+
+function drawStrokePath(ctx: CanvasRenderingContext2D, stroke: { points: DrawPoint[]; color: string; width: number }) {
+  if (stroke.points.length < 2) return
+  ctx.beginPath()
+  ctx.lineWidth = stroke.width
+  ctx.strokeStyle = stroke.color
+  ctx.lineCap = 'round'
+  ctx.lineJoin = 'round'
+  ctx.moveTo(stroke.points[0].x, stroke.points[0].y)
+  for (let i = 1; i < stroke.points.length; i += 1) {
+    ctx.lineTo(stroke.points[i].x, stroke.points[i].y)
+  }
+  ctx.stroke()
+}
 
 function PictionaryGameContent() {
   const params = useParams()
@@ -31,6 +48,8 @@ function PictionaryGameContent() {
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const drawingRef = useRef(false)
+  const isDrawingLocalRef = useRef(false)
+  const lastStrokeSyncRef = useRef(0)
   const pathRef = useRef<DrawPoint[]>([])
 
   useEffect(() => {
@@ -67,6 +86,10 @@ function PictionaryGameContent() {
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
+    if (isDrawer && isDrawingLocalRef.current) {
+      return
+    }
+
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
@@ -75,30 +98,35 @@ function PictionaryGameContent() {
 
     const strokes = game?.strokes || []
     for (const stroke of strokes) {
-      if (!stroke.points.length) continue
-      ctx.beginPath()
-      ctx.lineWidth = stroke.width
-      ctx.strokeStyle = stroke.color
-      ctx.lineCap = 'round'
-      ctx.lineJoin = 'round'
-      ctx.moveTo(stroke.points[0].x, stroke.points[0].y)
-      for (let i = 1; i < stroke.points.length; i += 1) {
-        ctx.lineTo(stroke.points[i].x, stroke.points[i].y)
-      }
-      ctx.stroke()
+      drawStrokePath(ctx, stroke)
     }
-  }, [game?.strokes])
 
+    const wip = game?.strokeInProgress
+    if (wip && wip.points.length >= 2) {
+      drawStrokePath(ctx, wip)
+    }
+  }, [game?.strokes, game?.strokeInProgress, isDrawer])
+
+  /** 將螢幕上的點轉成 canvas 內部座標（CSS 縮放後的顯示區與 width/height 屬性常不一致） */
   function pointFromEvent(event: PointerEvent<HTMLCanvasElement>): DrawPoint {
     const canvas = canvasRef.current
     if (!canvas) return { x: 0, y: 0 }
     const rect = canvas.getBoundingClientRect()
-    return { x: event.clientX - rect.left, y: event.clientY - rect.top }
+    const rw = rect.width || 1
+    const rh = rect.height || 1
+    const scaleX = canvas.width / rw
+    const scaleY = canvas.height / rh
+    return {
+      x: (event.clientX - rect.left) * scaleX,
+      y: (event.clientY - rect.top) * scaleY,
+    }
   }
 
   function onPointerDown(event: PointerEvent<HTMLCanvasElement>) {
     if (!isDrawer || !currentRound || currentRound.isRevealed) return
     drawingRef.current = true
+    isDrawingLocalRef.current = true
+    lastStrokeSyncRef.current = 0
     pathRef.current = [pointFromEvent(event)]
     const canvas = canvasRef.current
     if (canvas) canvas.setPointerCapture(event.pointerId)
@@ -124,18 +152,37 @@ function PictionaryGameContent() {
     ctx.moveTo(prev.x, prev.y)
     ctx.lineTo(p.x, p.y)
     ctx.stroke()
+
+    const now = Date.now()
+    if (now - lastStrokeSyncRef.current >= STROKE_SYNC_MS && points.length >= 2) {
+      lastStrokeSyncRef.current = now
+      const snapshot: DrawStroke = {
+        points: points.map((pt) => ({ ...pt })),
+        color: '#111827',
+        width: 4,
+      }
+      void setStrokeInProgress(roomId, snapshot)
+    }
   }
 
   async function onPointerUp(event: PointerEvent<HTMLCanvasElement>) {
     if (!drawingRef.current) return
     drawingRef.current = false
+    isDrawingLocalRef.current = false
     const canvas = canvasRef.current
     if (canvas) canvas.releasePointerCapture(event.pointerId)
     if (!isDrawer) return
-    if (pathRef.current.length < 2) return
-    const stroke: DrawStroke = { points: pathRef.current, color: '#111827', width: 4 }
+
+    const pts = pathRef.current
     pathRef.current = []
-    await appendPictionaryStroke(roomId, stroke)
+
+    if (pts.length < 2) {
+      await setStrokeInProgress(roomId, null)
+      return
+    }
+
+    const stroke: DrawStroke = { points: pts, color: '#111827', width: 4 }
+    await finalizePictionaryStroke(roomId, stroke)
   }
 
   async function handleGuess(event: FormEvent) {

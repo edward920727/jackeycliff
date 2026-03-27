@@ -143,14 +143,26 @@ export async function startPictionaryGame(roomId: string): Promise<void> {
     participants: data.participants.map((p) => ({ ...p, score: 0 })),
     currentRound: createRound(data.participants, 1),
     strokes: [],
+    strokeInProgress: null,
     updated_at: new Date(),
   })
 }
 
-export async function appendPictionaryStroke(roomId: string, stroke: DrawStroke): Promise<void> {
+/** 作畫中即時同步（他人畫面用）；傳 null 表示提筆或清空進行中筆跡 */
+export async function setStrokeInProgress(roomId: string, stroke: DrawStroke | null): Promise<void> {
+  const ref = doc(db, COLLECTION_NAME, roomId)
+  await updateDoc(ref, {
+    strokeInProgress: stroke,
+    updated_at: new Date(),
+  })
+}
+
+/** 提筆後寫入正式筆畫並清除進行中（單次寫入，降低延遲） */
+export async function finalizePictionaryStroke(roomId: string, stroke: DrawStroke): Promise<void> {
   const ref = doc(db, COLLECTION_NAME, roomId)
   await updateDoc(ref, {
     strokes: arrayUnion(stroke),
+    strokeInProgress: null,
     updated_at: new Date(),
   })
 }
@@ -159,6 +171,7 @@ export async function clearPictionaryCanvas(roomId: string): Promise<void> {
   const ref = doc(db, COLLECTION_NAME, roomId)
   await updateDoc(ref, {
     strokes: [],
+    strokeInProgress: null,
     updated_at: new Date(),
   })
 }
@@ -230,6 +243,7 @@ export async function nextPictionaryRound(roomId: string): Promise<void> {
         ...data.currentRound,
         isRevealed: true,
       },
+      strokeInProgress: null,
       updated_at: new Date(),
     })
     return
@@ -238,6 +252,7 @@ export async function nextPictionaryRound(roomId: string): Promise<void> {
   await updateDoc(ref, {
     currentRound: createRound(data.participants, nextRoundNumber),
     strokes: [],
+    strokeInProgress: null,
     updated_at: new Date(),
   })
 }
@@ -253,6 +268,7 @@ export async function resetPictionaryToLobby(roomId: string): Promise<void> {
     participants: data.participants.map((p) => ({ ...p, score: 0 })),
     currentRound: null,
     strokes: [],
+    strokeInProgress: null,
     updated_at: new Date(),
   })
 }

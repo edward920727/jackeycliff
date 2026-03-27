@@ -36,6 +36,8 @@ export interface PictionaryGameData {
   participants: PictionaryParticipant[]
   currentRound: PictionaryRound | null
   strokes: DrawStroke[]
+  /** 作畫者尚未放開筆時的即時筆跡（節流同步給其他人看） */
+  strokeInProgress?: DrawStroke | null
   maxRounds: number
   created_at?: any
   updated_at?: any
