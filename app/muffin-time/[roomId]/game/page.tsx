@@ -22,7 +22,7 @@ import { getCardFlyDirection, getOpponentSlots } from '@/lib/muffin-time/tableVi
 
 function floatingBtnClass(disabled?: boolean) {
   return [
-    'rounded-xl border border-white/15 bg-black/45 px-2.5 py-1.5 text-[10px] font-semibold text-amber-50 shadow-lg backdrop-blur-md transition hover:bg-black/55',
+    'touch-manipulation rounded-xl border border-white/15 bg-black/45 px-3 py-2.5 text-[10px] font-semibold text-amber-50 shadow-lg backdrop-blur-sm transition hover:bg-black/55 sm:px-2.5 sm:py-1.5 md:backdrop-blur-md',
     disabled ? 'opacity-40' : '',
   ].join(' ')
 }
@@ -265,7 +265,7 @@ export default function MuffinTimeGamePage() {
       />
 
       {/* 底部區：fixed + z-50，避免被 GameLayout overflow／PlayZone 層級遮住；扇形向上展開不裁切 */}
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center overflow-visible bg-gradient-to-t from-black/75 via-black/30 to-transparent pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-4">
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center overflow-visible bg-gradient-to-t from-black/80 via-black/35 to-transparent pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-5">
         <div className="pointer-events-auto flex w-full max-w-4xl flex-col items-center gap-1 overflow-visible px-2">
           {game.status === 'finished' && (
             <div className="mb-0.5 rounded-lg border border-amber-500/40 bg-amber-950/90 px-2 py-1 text-center text-[10px] text-amber-100 shadow-lg">
@@ -334,7 +334,7 @@ export default function MuffinTimeGamePage() {
 
       {/* 反擊：緊湊條（桌面下緣上方） */}
       {iAmDiscardTarget && game.status === 'playing' ? (
-        <div className="fixed bottom-[min(32vh,260px)] left-1/2 z-[80] w-[min(94vw,22rem)] -translate-x-1/2 rounded-xl border border-rose-500/50 bg-rose-950/90 p-2 shadow-xl backdrop-blur-md">
+        <div className="fixed bottom-[min(34vh,280px)] left-1/2 z-[80] w-[min(94vw,22rem)] -translate-x-1/2 rounded-xl border border-rose-500/50 bg-rose-950/92 p-2 shadow-xl backdrop-blur-sm sm:backdrop-blur-md">
           <p className="text-center text-[10px] font-semibold text-rose-100">被指定棄 {pending?.amount} 張</p>
           <div className="mt-1.5 flex flex-wrap justify-center gap-1">
             <button type="button" disabled={busy} onClick={() => run(() => muffinResolveDiscard(roomId))} className="rounded-lg bg-rose-900 px-2 py-1 text-[10px] text-rose-50">

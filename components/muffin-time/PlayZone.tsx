@@ -88,14 +88,7 @@ export function PlayZone({
   }, [lastCardPlay?.seq, lastCardPlay?.cardId])
 
   if (!state) {
-    return (
-      <div className="relative flex h-full min-h-0 flex-col items-center justify-center rounded-3xl border border-amber-900/40 bg-black/15 px-2 py-4 text-center shadow-inner">
-        <p className="text-[10px] font-medium tracking-widest text-amber-800/80">PlayZone</p>
-        <p className="mt-1 max-w-[12rem] text-[9px] leading-relaxed text-amber-900/70">
-          行動牌將顯示於此
-        </p>
-      </div>
-    )
+    return <div className="relative h-full min-h-0 w-full" aria-hidden />
   }
 
   const def = getCardDef(state.cardId)
@@ -103,24 +96,12 @@ export function PlayZone({
   const opacity = stageOpacity(state.stage)
 
   return (
-    <div className="relative flex h-full min-h-0 flex-col items-center justify-center overflow-visible rounded-3xl border border-amber-900/45 bg-black/15 px-2 py-3 shadow-inner">
-      <p className="absolute top-2 left-1/2 z-0 -translate-x-1/2 text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-900/60">
-        PlayZone
-      </p>
-
-      <div
-        className="pointer-events-none absolute bottom-3 right-4 z-0 flex flex-col items-center gap-0.5 rounded-xl border border-amber-950/50 bg-amber-950/40 px-2 py-1.5 text-[9px] text-amber-200/70"
-        aria-hidden
-      >
-        <span>棄牌堆</span>
-        <span className="font-mono text-amber-100/90">↓</span>
-      </div>
-
+    <div className="relative flex h-full min-h-0 flex-col items-center justify-center overflow-visible px-2 py-3">
       <div
         className={[
-          'relative z-10 w-[min(92%,200px)] rounded-2xl border-2 border-amber-700/90 bg-gradient-to-b from-amber-800/95 to-amber-950 px-2.5 py-2 text-left',
-          'shadow-2xl will-change-transform',
-          'transition-[transform,opacity] duration-500 ease-out',
+          'relative z-10 w-[min(92%,220px)] px-2 py-1 text-center',
+          'will-change-transform',
+          'transition-[transform,opacity] duration-500 ease-out motion-reduce:transition-none motion-reduce:duration-200',
           state.stage === 'toDiscard' ? 'duration-500 ease-in' : '',
         ].join(' ')}
         style={{
@@ -128,8 +109,12 @@ export function PlayZone({
           opacity,
         }}
       >
-        <div className="text-sm font-bold text-amber-50 drop-shadow-md">{def?.name ?? state.cardId}</div>
-        <div className="mt-1 text-[10px] leading-snug text-amber-200/90 line-clamp-4">{def?.desc}</div>
+        <div className="text-sm font-bold text-amber-50 [text-shadow:0_1px_2px_rgba(0,0,0,0.95),0_0_12px_rgba(0,0,0,0.65)]">
+          {def?.name ?? state.cardId}
+        </div>
+        <div className="mt-1 text-[10px] leading-snug text-amber-100/95 line-clamp-4 [text-shadow:0_1px_2px_rgba(0,0,0,0.9)]">
+          {def?.desc}
+        </div>
       </div>
     </div>
   )

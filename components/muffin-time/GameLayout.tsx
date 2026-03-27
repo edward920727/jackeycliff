@@ -74,8 +74,10 @@ export function GameLayout({
   floatingActions,
 }: GameLayoutProps) {
   return (
-    <div className="flex h-screen max-h-[100dvh] flex-col overflow-x-hidden bg-[#070403] text-amber-50">
-      <div className="shrink-0 border-b border-amber-950/50 bg-black/40 px-2 py-1.5 backdrop-blur-md">{header}</div>
+    <div className="flex h-screen max-h-[100dvh] flex-col overflow-x-hidden bg-[#070403] text-amber-50 antialiased">
+      <div className="shrink-0 border-b border-amber-950/50 bg-black/50 px-2 py-1.5 pt-[max(0.35rem,env(safe-area-inset-top))] backdrop-blur-sm md:backdrop-blur-md">
+        {header}
+      </div>
 
       <div className="relative min-h-0 flex-1 overflow-y-visible">
         <div
@@ -96,6 +98,11 @@ export function GameLayout({
           className="pointer-events-none absolute inset-[14%] rounded-[48%] border border-amber-900/20 opacity-60 sm:inset-[15%]"
           aria-hidden
         />
+        {/* 中央木質圓桌（PlayZone 下層） */}
+        <div
+          className="pointer-events-none absolute inset-[20%] z-[4] rounded-[50%] border-2 border-stone-900/90 bg-gradient-to-br from-amber-950/95 via-[#1c120c] to-black/70 shadow-[inset_0_0_70px_rgba(0,0,0,0.88),0_12px_40px_rgba(0,0,0,0.55)] sm:inset-[22%]"
+          aria-hidden
+        />
 
         <div className="pointer-events-none absolute left-[2%] top-1/2 z-20 -translate-y-1/2 sm:left-[3%]">
           <div className="pointer-events-auto">{avatarLeft}</div>
@@ -111,15 +118,15 @@ export function GameLayout({
         </div>
 
         {/* PlayZone 低於手牌層（頁面 fixed z-50） */}
-        <div className="pointer-events-none absolute inset-0 z-[5] flex items-center justify-center px-3 pb-[min(38vh,280px)] pt-[min(12vh,88px)]">
+        <div className="pointer-events-none absolute inset-0 z-[5] flex items-center justify-center px-3 pb-[min(42vh,310px)] pt-[min(12vh,88px)]">
           <div className="pointer-events-auto h-[min(34vmin,280px)] w-[min(72vmin,520px)] max-w-full">{playZone}</div>
         </div>
 
-        <div className="pointer-events-none absolute bottom-[min(28vh,240px)] left-2 z-30 max-w-[min(42vw,200px)] sm:bottom-[min(30vh,260px)] sm:left-3">
+        <div className="pointer-events-none absolute bottom-[min(30vh,260px)] left-2 z-30 max-w-[min(42vw,200px)] sm:bottom-[min(32vh,280px)] sm:left-3">
           <div className="pointer-events-auto">{logPanel}</div>
         </div>
 
-        <div className="pointer-events-none absolute bottom-[min(26vh,220px)] right-2 z-40 max-w-[min(48vw,220px)] sm:bottom-[min(28vh,240px)] sm:right-3">
+        <div className="pointer-events-none absolute bottom-[min(28vh,240px)] right-2 z-40 max-w-[min(48vw,220px)] sm:bottom-[min(30vh,260px)] sm:right-3">
           <div className="pointer-events-auto flex flex-col items-end gap-1.5">{floatingActions}</div>
         </div>
       </div>
