@@ -12,10 +12,14 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@react-three/drei": "^9.105.6",
+    "@react-three/fiber": "^8.15.19",
     "firebase": "^10.14.1",
+    "framer-motion": "^12.38.0",
     "next": "^14.0.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "three": "^0.160.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

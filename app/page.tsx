@@ -148,6 +148,25 @@ export default function GameHub() {
               2–8 人｜線上簡化版、自創牌庫
             </p>
           </button>
+
+          {/* 大富翁 */}
+          <button
+            onClick={() => router.push('/monopoly')}
+            className="group bg-gray-900/80 border border-gray-700 rounded-2xl p-4 sm:p-6 text-left hover:border-lime-500 hover:shadow-lg hover:shadow-lime-500/20 transition-all"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-xl font-bold text-white group-hover:text-lime-300">
+                大富翁
+              </h2>
+              <span className="text-2xl">🏠</span>
+            </div>
+            <p className="text-sm text-gray-300 mb-2">
+              擲骰繞行棋盤、買地收租、機會命運與監獄；本機輪流，最後未破產者勝。
+            </p>
+            <p className="text-xs text-gray-500">
+              2–4 人｜本機同螢幕輪流操作
+            </p>
+          </button>
         </div>
 
         <div className="mt-4 flex justify-center">
@@ -164,4 +183,3 @@ export default function GameHub() {
     </div>
   )
 }
-

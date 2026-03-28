@@ -7,6 +7,16 @@ module.exports = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        game: [
+          'var(--font-monopoly)',
+          'Nunito',
+          'ui-rounded',
+          '"Microsoft JhengHei"',
+          '"PingFang TC"',
+          'sans-serif',
+        ],
+      },
       colors: {
         'codename-red': '#ef4444',
         'codename-blue': '#3b82f6',
