@@ -90,6 +90,17 @@ function existingCorrectOrderIds(round: PictionaryRound): string[] {
   return []
 }
 
+/** 作畫者以外所有人是否都已在本回合答對 */
+function allNonDrawerGuessersCorrect(
+  round: PictionaryRound,
+  participants: PictionaryParticipant[]
+): boolean {
+  const order = existingCorrectOrderIds(round)
+  const guesserIds = participants.filter((p) => p.id !== round.drawerId).map((p) => p.id)
+  if (guesserIds.length === 0) return true
+  return guesserIds.every((id) => order.includes(id))
+}
+
 function createRound(
   participants: PictionaryParticipant[],
   roundNumber: number,
@@ -409,6 +420,18 @@ export async function nextPictionaryRound(
       opts?.ifCurrentRoundNumber != null &&
       data.currentRound.roundNumber !== opts.ifCurrentRoundNumber
     ) {
+      return
+    }
+
+    const round = data.currentRound
+    const everyoneCorrect = allNonDrawerGuessersCorrect(round, data.participants)
+
+    // 只要有人（作畫者以外）還沒答對，進下一題前須先公布答案
+    if (!everyoneCorrect && !round.isRevealed) {
+      transaction.update(ref, {
+        currentRound: { ...round, isRevealed: true },
+        updated_at: new Date(),
+      })
       return
     }
 
