@@ -448,6 +448,54 @@ export default function AvalonGamePage() {
           </div>
         </div>
 
+        {game.status === 'finished' && (
+          <div className="mt-5 max-w-3xl mx-auto">
+            <div className="bg-gradient-to-b from-[#0f172a] via-[#1e293b] to-[#0f172a] border-[3px] border-amber-500/50 rounded-2xl p-4 sm:p-6 shadow-[0_18px_45px_rgba(0,0,0,0.85)]">
+              <h2 className="text-lg sm:text-xl font-bold text-amber-100 tracking-wide text-center mb-1">
+                遊戲結束 · 身分公布
+              </h2>
+              <p className="text-center text-[11px] sm:text-xs text-amber-200/80 mb-4">
+                本局已結束，以下為所有玩家的真實身分（可截圖或口述給同桌確認）。
+              </p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {playersSafe
+                  .slice()
+                  .sort((a, b) => a.seat - b.seat)
+                  .map((p) => {
+                    const r = AVALON_ROLES[p.roleId]
+                    const good = r.faction === 'good'
+                    return (
+                      <div
+                        key={p.seat}
+                        className={`flex flex-wrap items-center justify-between gap-2 rounded-xl border px-3 py-2.5 text-sm ${
+                          good
+                            ? 'border-emerald-500/50 bg-emerald-950/40'
+                            : 'border-rose-500/50 bg-rose-950/40'
+                        }`}
+                      >
+                        <span className="font-medium text-amber-50">
+                          {formatPlayer(p.seat)}
+                        </span>
+                        <span
+                          className={
+                            good
+                              ? 'text-emerald-300 font-semibold'
+                              : 'text-rose-300 font-semibold'
+                          }
+                        >
+                          {r.name}
+                          <span className="text-amber-100/70 font-normal text-xs ml-1">
+                            （{good ? '好人' : '壞人'}）
+                          </span>
+                        </span>
+                      </div>
+                    )
+                  })}
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="mt-5 max-w-xl mx-auto">
           <div className="bg-gradient-to-b from-[#1e1309] via-[#23140a] to-[#120908] border-[3px] border-yellow-900/80 rounded-2xl p-4 sm:p-5 shadow-[0_18px_45px_rgba(0,0,0,0.85)]">
             <div className="flex items-center justify-between gap-2 mb-3">
