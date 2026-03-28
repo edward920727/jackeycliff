@@ -68,6 +68,19 @@ export default function AvalonGamePage() {
     return { targetSeat, success }
   }, [assassinationTargetSeatSafe, playersSafe])
 
+  const missionResultsSorted = useMemo(
+    () => [...(game?.missionResults ?? [])].sort((a, b) => a.round - b.round),
+    [game?.missionResults]
+  )
+
+  const rejectedProposalsSorted = useMemo(
+    () =>
+      [...(game?.rejectedProposals ?? [])].sort(
+        (a, b) => a.round - b.round || a.proposalIndex - b.proposalIndex
+      ),
+    [game?.rejectedProposals]
+  )
+
   // 載入遊戲
   useEffect(() => {
     async function init() {
@@ -381,6 +394,9 @@ export default function AvalonGamePage() {
     }
   }
 
+  const formatTeamSeats = (seats: number[]) =>
+    [...seats].sort((a, b) => a - b).map((s) => formatPlayer(s)).join('、')
+
   return (
     <div
       className="min-h-screen bg-black/70 p-4 sm:p-6"
@@ -618,6 +634,117 @@ export default function AvalonGamePage() {
                   </div>
                 )
               })}
+            </div>
+
+            {/* 任務與隊伍紀錄：實際出任務結果 + 被否決提案，方便局中分析 */}
+            <div className="mt-4 pt-4 border-t border-yellow-900/40">
+              <div className="text-xs sm:text-sm font-semibold text-amber-100/95 mb-1">
+                任務與隊伍紀錄
+              </div>
+              <p className="text-[10px] sm:text-[11px] text-amber-200/75 mb-3">
+                可查閱每輪「實際出任務」的隊伍與成敗，以及「投票未通過」而未出隊的提案。
+              </p>
+
+              {(game.phase === 'mission' || game.phase === 'team_vote') &&
+                serverTeamSeats.length > 0 && (
+                  <div className="mb-3 rounded-lg border border-amber-600/40 bg-amber-950/30 px-3 py-2 text-[11px] sm:text-xs text-amber-100/90">
+                    <span className="font-semibold text-amber-200">本輪進行中 · </span>
+                    第 {currentRound} 輪
+                    {game.phase === 'team_vote' ? '（等待投票）' : '（任務執行中）'}
+                    <span className="text-amber-100/80"> · 隊長 {formatPlayer(game.leaderSeat)}</span>
+                    <div className="mt-1.5 text-amber-50/95">
+                      提案隊伍：{formatTeamSeats(serverTeamSeats)}
+                    </div>
+                  </div>
+                )}
+
+              {missionResultsSorted.length > 0 && (
+                <div className="mb-3">
+                  <div className="text-[11px] sm:text-xs text-amber-200/90 mb-2">
+                    已結算任務（實際出隊）
+                  </div>
+                  <ul className="space-y-2">
+                    {missionResultsSorted.map((r) => {
+                      const sz = getMissionTeamSize(game.player_count, r.round)
+                      const successCards = Math.max(0, sz - r.failCount)
+                      const leader = r.leaderSeat != null ? formatPlayer(r.leaderSeat) : '—'
+                      return (
+                        <li
+                          key={`mr-${r.round}`}
+                          className={`rounded-lg border px-3 py-2 text-[11px] sm:text-xs ${
+                            r.success
+                              ? 'border-emerald-500/45 bg-emerald-950/35'
+                              : 'border-rose-500/45 bg-rose-950/35'
+                          }`}
+                        >
+                          <div className="flex flex-wrap items-baseline justify-between gap-2">
+                            <span className="font-semibold text-amber-50">
+                              第 {r.round} 輪任務
+                              <span
+                                className={
+                                  r.success
+                                    ? ' ml-2 text-emerald-300'
+                                    : ' ml-2 text-rose-300'
+                                }
+                              >
+                                {r.success ? '成功' : '失敗'}
+                              </span>
+                            </span>
+                            <span className="text-amber-100/80">
+                              票型：成功 {successCards} / 失敗 {r.failCount}
+                            </span>
+                          </div>
+                          <div className="mt-1 text-amber-100/85">
+                            隊長：{leader}
+                          </div>
+                          <div className="mt-0.5 text-amber-50/95">
+                            出任務：{formatTeamSeats(r.missionTeamSeats ?? [])}
+                          </div>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
+              )}
+
+              {rejectedProposalsSorted.length > 0 && (
+                <div>
+                  <div className="text-[11px] sm:text-xs text-amber-200/90 mb-2">
+                    被否決的隊伍提案（未出隊）
+                  </div>
+                  <ul className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                    {rejectedProposalsSorted.map((rp, idx) => (
+                      <li
+                        key={`rej-${rp.round}-${rp.proposalIndex}-${idx}`}
+                        className="rounded-lg border border-slate-600/60 bg-slate-950/40 px-3 py-2 text-[11px] sm:text-xs text-amber-100/90"
+                      >
+                        <div className="flex flex-wrap gap-x-2 gap-y-0.5">
+                          <span>
+                            第 {rp.round} 輪 · 第 {rp.proposalIndex} 次提案
+                          </span>
+                          <span className="text-amber-200/80">
+                            投票 {rp.approveCount} 贊成 / {rp.rejectCount} 反對
+                          </span>
+                        </div>
+                        <div className="mt-1 text-amber-50/95">
+                          隊長 {formatPlayer(rp.leaderSeat)} · 隊伍 {formatTeamSeats(rp.teamSeats)}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {missionResultsSorted.length === 0 &&
+                rejectedProposalsSorted.length === 0 &&
+                !(
+                  (game.phase === 'mission' || game.phase === 'team_vote') &&
+                  serverTeamSeats.length > 0
+                ) && (
+                  <p className="text-[11px] text-amber-200/60">
+                    尚無紀錄；任務結算或提案被否決後會顯示於此。
+                  </p>
+                )}
             </div>
           </div>
 

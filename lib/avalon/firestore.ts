@@ -22,6 +22,7 @@ import type {
   AvalonPlayer,
   AvalonMissionResult,
   AvalonMissionVote,
+  AvalonRejectedProposal,
   AvalonTeamVote,
 } from '@/types/avalon'
 import {
@@ -201,6 +202,7 @@ export async function startAvalonGame(roomId: string): Promise<void> {
     votes: [],
     missionVotes: [],
     missionResults: [],
+    rejectedProposals: [],
     assassinParticipantId: assassinPlayer?.participantId,
     assassinationTargetSeat: null,
     winnerFaction: deleteField(),
@@ -325,12 +327,25 @@ export async function submitTeamVote(
     const nextLeaderIndex = players.findIndex((p) => p.seat === leaderSeat) + 1
     const nextLeaderSeat = players[nextLeaderIndex % players.length]?.seat ?? leaderSeat
 
+    const proposedSeats = data.proposedTeamSeats || []
+    const rejectCount = data.player_count - approveCount
+    const rejectedEntry: AvalonRejectedProposal = {
+      round: currentRound,
+      proposalIndex: currentProposal,
+      leaderSeat,
+      teamSeats: [...proposedSeats].sort((a, b) => a - b),
+      approveCount,
+      rejectCount,
+    }
+    const prevRejected: AvalonRejectedProposal[] = data.rejectedProposals || []
+
     await updateDoc(gameRef, {
       votes: newVotes,
       currentProposal: nextProposal,
       leaderSeat: nextLeaderSeat,
       phase: 'leader_select',
       proposedTeamSeats: [],
+      rejectedProposals: [...prevRejected, rejectedEntry],
       updated_at: new Date(),
     })
   }
@@ -396,6 +411,7 @@ export async function submitMissionVote(
     success: missionSuccess,
     failCount,
     missionTeamSeats: [...teamSeats],
+    leaderSeat: data.leaderSeat,
   }
   const allResults = [...prevResults, newResult]
 
@@ -520,6 +536,7 @@ export async function resetAvalonGameToLobby(roomId: string): Promise<void> {
     votes: [],
     missionVotes: [],
     missionResults: [],
+    rejectedProposals: [],
     winnerFaction: deleteField(),
     assassinationTargetSeat: deleteField(),
     assassinParticipantId: deleteField(),

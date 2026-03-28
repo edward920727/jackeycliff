@@ -42,6 +42,19 @@ export interface AvalonMissionResult {
   failCount: number
   /** 該輪實際出任務的玩家座位 */
   missionTeamSeats?: number[]
+  /** 提案通過並派出此隊伍時的隊長座位（方便賽後／局中分析） */
+  leaderSeat?: number
+}
+
+/** 全體投票未通過、未出任務的提案紀錄 */
+export interface AvalonRejectedProposal {
+  round: number
+  /** 該輪第幾次提案（從 1 起算） */
+  proposalIndex: number
+  leaderSeat: number
+  teamSeats: number[]
+  approveCount: number
+  rejectCount: number
 }
 
 export interface AvalonGameData {
@@ -74,6 +87,8 @@ export interface AvalonGameData {
   missionVotes?: AvalonMissionVote[]
   /** 已完成的任務結果列表，用來顯示進度條 */
   missionResults?: AvalonMissionResult[]
+  /** 被投票否決、未出任務的隊伍提案（依時間累積） */
+  rejectedProposals?: AvalonRejectedProposal[]
   /** 若進入刺殺階段，記錄刺客選擇刺殺的目標座位（方便之後顯示） */
   assassinationTargetSeat?: number
   /** 記錄哪一個玩家是刺客（participantId），方便驗證誰可以操作刺殺 */
