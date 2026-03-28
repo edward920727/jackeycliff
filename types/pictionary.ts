@@ -9,6 +9,13 @@ export interface StartPictionaryGameOptions {
   /** 先達幾分（first_to_score 時必填；most_points 可傳任意預設） */
   targetScore: number
   wordBankId: string
+  /**
+   * wordBankId 為 custom 時：可傳已解析的詞（與 customWordBankText 擇一）。
+   * 若兩者皆無有效內容則開始失敗。
+   */
+  customWords?: string[]
+  /** 房主貼上的原文；與 customWords 擇一 */
+  customWordBankText?: string
 }
 
 export interface PictionaryParticipant {
@@ -70,8 +77,10 @@ export interface PictionaryGameData {
   winMode?: PictionaryWinMode
   /** 先達幾分結束（僅 first_to_score 時使用） */
   targetScore?: number
-  /** 題庫 id（如 general、food） */
+  /** 題庫 id（如 general、food、custom） */
   wordBankId?: string
+  /** 自訂題庫詞彙（僅 wordBankId === 'custom'） */
+  custom_words?: string[]
   /** 本局已出現過的題目（同一局內不重複，題庫用盡後才重複） */
   used_words?: string[]
   /** 本回合猜詞紀錄（猜錯顯示內容；猜中只顯示「猜中」不顯示答案） */

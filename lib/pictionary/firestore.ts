@@ -22,9 +22,12 @@ import type {
   StartPictionaryGameOptions,
 } from '@/types/pictionary'
 import {
+  CUSTOM_WORD_BANK_ID,
   DEFAULT_WORD_BANK_ID,
   isValidWordBankId,
+  parseCustomWordBankInput,
   pickWordExcluding,
+  validateCustomWordList,
 } from '@/lib/pictionary/wordBanks'
 
 const COLLECTION_NAME = 'pictionary_games'
@@ -162,10 +165,23 @@ export async function startPictionaryGame(
   const maxRounds = clamp(options.maxRounds, 1, 30)
   const winMode = options.winMode
   const targetScore = clamp(options.targetScore, 1, 99)
-  const wordBankId = isValidWordBankId(options.wordBankId) ? options.wordBankId : DEFAULT_WORD_BANK_ID
+  let wordBankId = isValidWordBankId(options.wordBankId) ? options.wordBankId : DEFAULT_WORD_BANK_ID
+
+  let customWordsStored: string[] | undefined
+  if (wordBankId === CUSTOM_WORD_BANK_ID) {
+    const parsed =
+      options.customWords && options.customWords.length > 0
+        ? parseCustomWordBankInput(options.customWords.map((w) => String(w).trim()).filter(Boolean).join('\n'))
+        : parseCustomWordBankInput(options.customWordBankText || '')
+    const errMsg = validateCustomWordList(parsed)
+    if (errMsg) throw new Error(errMsg)
+    customWordsStored = parsed
+  } else {
+    customWordsStored = undefined
+  }
 
   const used: string[] = []
-  const word1 = pickWordExcluding(used, wordBankId)
+  const word1 = pickWordExcluding(used, wordBankId, customWordsStored)
 
   await updateDoc(ref, {
     status: 'playing',
@@ -173,6 +189,9 @@ export async function startPictionaryGame(
     winMode,
     targetScore,
     wordBankId,
+    ...(customWordsStored?.length
+      ? { custom_words: customWordsStored }
+      : { custom_words: deleteField() }),
     participants: data.participants.map((p) => ({ ...p, score: 0 })),
     currentRound: createRound(data.participants, 1, word1),
     used_words: [word1],
@@ -347,7 +366,7 @@ export async function submitPictionaryGuess(
       usedArr.push(round.word)
     }
     const bankId = data.wordBankId ?? DEFAULT_WORD_BANK_ID
-    const nextWord = pickWordExcluding(usedArr, bankId)
+    const nextWord = pickWordExcluding(usedArr, bankId, data.custom_words)
 
     await updateDoc(ref, {
       participants: updatedParticipants,
@@ -412,7 +431,7 @@ export async function nextPictionaryRound(
       usedArr.push(data.currentRound.word)
     }
     const bankId = data.wordBankId ?? DEFAULT_WORD_BANK_ID
-    const nextWord = pickWordExcluding(usedArr, bankId)
+    const nextWord = pickWordExcluding(usedArr, bankId, data.custom_words)
 
     transaction.update(ref, {
       currentRound: createRound(data.participants, nextRoundNumber, nextWord),
@@ -442,6 +461,7 @@ export async function resetPictionaryToLobby(roomId: string): Promise<void> {
     winMode: deleteField(),
     targetScore: deleteField(),
     wordBankId: deleteField(),
+    custom_words: deleteField(),
     updated_at: new Date(),
   })
 }

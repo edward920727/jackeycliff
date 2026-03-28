@@ -1,11 +1,16 @@
 'use client'
 
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import type { PictionaryGameData, PictionaryWinMode } from '@/types/pictionary'
 import type { PictionarySnapshotMeta } from '@/lib/pictionary/firestore'
 import { PictionaryConnectionBadge } from '@/lib/pictionary/ConnectionBadge'
-import { DEFAULT_WORD_BANK_ID, WORD_BANK_OPTIONS } from '@/lib/pictionary/wordBanks'
+import {
+  CUSTOM_WORD_BANK_ID,
+  DEFAULT_WORD_BANK_ID,
+  WORD_BANK_OPTIONS,
+  parseCustomWordBankInput,
+} from '@/lib/pictionary/wordBanks'
 import { useNavigatorOnline } from '@/lib/pictionary/useNavigatorOnline'
 import {
   createPictionaryRoom,
@@ -15,7 +20,16 @@ import {
   startPictionaryGame,
   subscribeToPictionaryGame,
 } from '@/lib/pictionary/firestore'
+import type { SavedCustomBank } from '@/lib/pictionary/savedCustomBanks'
+import {
+  deleteSavedCustomBank,
+  getSavedCustomBank,
+  listSavedCustomBanks,
+  upsertSavedCustomBank,
+} from '@/lib/pictionary/savedCustomBanks'
 import { pictionaryBackgroundStyle } from '@/lib/pictionary/constants'
+
+const CUSTOM_WORD_DRAFT_KEY = 'pictionary_custom_word_draft'
 
 function PictionaryRoomContent() {
   const params = useParams()
@@ -37,8 +51,40 @@ function PictionaryRoomContent() {
   const [winMode, setWinMode] = useState<PictionaryWinMode>('most_points')
   const [targetScore, setTargetScore] = useState(5)
   const [wordBankId, setWordBankId] = useState(DEFAULT_WORD_BANK_ID)
+  const [customWordText, setCustomWordText] = useState('')
+  const [savedBanks, setSavedBanks] = useState<SavedCustomBank[]>([])
+  const [saveBankName, setSaveBankName] = useState('')
+  const [selectedSavedId, setSelectedSavedId] = useState('')
 
   const navigatorOnline = useNavigatorOnline()
+
+  function refreshSavedBanks() {
+    setSavedBanks(listSavedCustomBanks())
+  }
+
+  const parsedCustomWords = useMemo(
+    () => parseCustomWordBankInput(customWordText),
+    [customWordText]
+  )
+
+  useEffect(() => {
+    try {
+      const s = localStorage.getItem(CUSTOM_WORD_DRAFT_KEY)
+      if (s) setCustomWordText(s)
+    } catch {
+      /* ignore */
+    }
+    refreshSavedBanks()
+  }, [])
+
+  function updateCustomDraft(value: string) {
+    setCustomWordText(value)
+    try {
+      localStorage.setItem(CUSTOM_WORD_DRAFT_KEY, value)
+    } catch {
+      /* ignore */
+    }
+  }
 
   useEffect(() => {
     if (!pid) {
@@ -111,6 +157,7 @@ function PictionaryRoomContent() {
         winMode,
         targetScore,
         wordBankId,
+        ...(wordBankId === CUSTOM_WORD_BANK_ID ? { customWordBankText: customWordText } : {}),
       })
     } catch (err: any) {
       alert(err.message || '開始失敗')
@@ -242,6 +289,100 @@ function PictionaryRoomContent() {
                     ))}
                   </select>
                 </label>
+                {wordBankId === CUSTOM_WORD_BANK_ID ? (
+                  <label className="flex flex-col gap-1 text-sm sm:col-span-2">
+                    <span className="text-gray-400">自訂詞彙</span>
+                    <textarea
+                      value={customWordText}
+                      onChange={(e) => updateCustomDraft(e.target.value)}
+                      rows={8}
+                      placeholder={`每行一詞，或用逗號、分號、頓號分隔
+例如：
+珍珠奶茶
+貓咪
+彩虹`}
+                      className="rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 font-mono text-sm resize-y min-h-[8rem]"
+                    />
+                    <span className="text-xs text-gray-500">
+                      已解析 {parsedCustomWords.length} 個不重複詞（至少 3、最多 500；單詞最長 40 字）
+                    </span>
+                    <div className="mt-3 space-y-3 rounded-lg border border-gray-800 bg-gray-900/60 p-3">
+                      <p className="text-xs font-medium text-gray-400">本機儲存（僅此瀏覽器）</p>
+                      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
+                        <label className="flex min-w-0 flex-1 flex-col gap-1">
+                          <span className="text-xs text-gray-500">儲存為（同名會覆蓋詞彙）</span>
+                          <input
+                            type="text"
+                            value={saveBankName}
+                            onChange={(e) => setSaveBankName(e.target.value)}
+                            maxLength={32}
+                            placeholder="題庫名稱"
+                            className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm"
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const r = upsertSavedCustomBank(saveBankName, parsedCustomWords)
+                            if (!r.ok) {
+                              alert(r.error)
+                              return
+                            }
+                            refreshSavedBanks()
+                            setSaveBankName('')
+                          }}
+                          className="rounded-lg border border-rose-700/80 bg-rose-950/50 px-3 py-2 text-sm text-rose-100 hover:bg-rose-900/50"
+                        >
+                          儲存題庫
+                        </button>
+                      </div>
+                      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
+                        <label className="flex min-w-0 flex-1 flex-col gap-1">
+                          <span className="text-xs text-gray-500">載入已儲存</span>
+                          <select
+                            value={selectedSavedId}
+                            onChange={(e) => setSelectedSavedId(e.target.value)}
+                            className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm"
+                          >
+                            <option value="">— 選擇題庫 —</option>
+                            {savedBanks.map((b) => (
+                              <option key={b.id} value={b.id}>
+                                {b.name}（{b.words.length} 詞）
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!selectedSavedId) return
+                            const b = getSavedCustomBank(selectedSavedId)
+                            if (!b) return
+                            updateCustomDraft(b.words.join('\n'))
+                          }}
+                          disabled={!selectedSavedId}
+                          className="rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 text-sm hover:bg-gray-800 disabled:opacity-50"
+                        >
+                          載入至編輯區
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!selectedSavedId) return
+                            if (!window.confirm('確定刪除此儲存題庫？')) return
+                            deleteSavedCustomBank(selectedSavedId)
+                            setSelectedSavedId('')
+                            refreshSavedBanks()
+                          }}
+                          disabled={!selectedSavedId}
+                          className="rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-gray-400 hover:bg-gray-800 hover:text-rose-300 disabled:opacity-50"
+                        >
+                          刪除
+                        </button>
+                      </div>
+                    </div>
+                  </label>
+                ) : null}
               </div>
             </div>
           ) : null}
@@ -249,10 +390,20 @@ function PictionaryRoomContent() {
           {isHost ? (
             <button
               onClick={handleStart}
-              disabled={isStarting || game.participants.length < 2}
+              disabled={
+                isStarting ||
+                game.participants.length < 2 ||
+                (wordBankId === CUSTOM_WORD_BANK_ID && parsedCustomWords.length < 3)
+              }
               className="rounded-xl bg-rose-600 hover:bg-rose-500 disabled:bg-gray-700 px-4 py-2 font-semibold"
             >
-              {game.participants.length < 2 ? '至少需要 2 位玩家' : isStarting ? '開始中...' : '開始遊戲'}
+              {game.participants.length < 2
+                ? '至少需要 2 位玩家'
+                : wordBankId === CUSTOM_WORD_BANK_ID && parsedCustomWords.length < 3
+                  ? `自訂題庫至少 3 個詞（目前 ${parsedCustomWords.length}）`
+                  : isStarting
+                    ? '開始中...'
+                    : '開始遊戲'}
             </button>
           ) : (
             <p className="text-sm text-gray-300">等待房主開始...</p>
