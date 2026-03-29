@@ -7,7 +7,7 @@ type Props = {
   cell: BoardCellDef
 }
 
-/** 旅遊大亨風：每格上方的小型程式化地標 */
+/** 大富翁風：每格上方的小型程式化地標 */
 export function TileLandmark({ cell }: Props) {
   const accent =
     cell.kind === 'property' || cell.kind === 'railroad' || cell.kind === 'utility' || cell.kind === 'tax'
