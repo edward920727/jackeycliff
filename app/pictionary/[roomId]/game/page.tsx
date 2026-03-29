@@ -16,7 +16,7 @@ import {
   subscribeToPictionaryGame,
 } from '@/lib/pictionary/firestore'
 import { PictionaryConnectionBadge } from '@/lib/pictionary/ConnectionBadge'
-import { pictionaryBackgroundStyle } from '@/lib/pictionary/constants'
+import { PICTIONARY_POST_REVEAL_DELAY_MS, pictionaryBackgroundStyle } from '@/lib/pictionary/constants'
 import {
   getSoundEnabled,
   playGameFinishedChime,
@@ -70,12 +70,8 @@ function PictionaryGameContent() {
   /** 每秒遞增，讓剩餘時間依 Date.now() 重算（僅依賴 Firestore 更新時倒數會凍結） */
   const [timerTick, setTimerTick] = useState(0)
 
-  /** 計時歸零：已對該回合送出過「下一回合／公布」請求（避免每秒重複） */
-  const timerPhase1RoundRef = useRef<number | null>(null)
-  /** 該回合的公布是否由計時歸零觸發（須在公布後延遲再進下一題） */
-  const timerRevealTriggeredForRoundRef = useRef<number | null>(null)
-  const timerPostRevealTimeoutRoundRef = useRef<number | null>(null)
-  const timerImmediateAdvanceRoundRef = useRef<number | null>(null)
+  /** 計時歸零時已處理過該回合（避免每秒重複呼叫） */
+  const timerExpireHandledRoundRef = useRef<number | null>(null)
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const drawingRef = useRef(false)
@@ -158,49 +154,31 @@ function PictionaryGameContent() {
   }, [currentRound, timerTick])
 
   useEffect(() => {
-    const rn = game?.currentRound?.roundNumber
-    if (rn == null) return
-    timerPhase1RoundRef.current = null
-    timerRevealTriggeredForRoundRef.current = null
-    timerPostRevealTimeoutRoundRef.current = null
-    timerImmediateAdvanceRoundRef.current = null
-  }, [game?.currentRound?.roundNumber])
-
-  useEffect(() => {
     const round = game?.currentRound
     if (!game || game.status !== 'playing' || !round) return
     if (timeLeft > 0) return
 
     const rn = round.roundNumber
+    if (timerExpireHandledRoundRef.current === rn) return
+    timerExpireHandledRoundRef.current = rn
 
-    if (!round.isRevealed) {
-      if (timerPhase1RoundRef.current === rn) return
-      timerPhase1RoundRef.current = rn
-      timerRevealTriggeredForRoundRef.current = rn
-      void nextPictionaryRound(roomId, { ifCurrentRoundNumber: rn }).catch(() => {
-        timerPhase1RoundRef.current = null
-        timerRevealTriggeredForRoundRef.current = null
-      })
-      return
-    }
-
-    if (timerRevealTriggeredForRoundRef.current === rn) {
-      if (timerPostRevealTimeoutRoundRef.current === rn) return
-      timerPostRevealTimeoutRoundRef.current = rn
-      const t = window.setTimeout(() => {
-        void nextPictionaryRound(roomId, { ifCurrentRoundNumber: rn }).finally(() => {
-          timerPostRevealTimeoutRoundRef.current = null
-        })
-      }, 3500)
-      return () => window.clearTimeout(t)
-    }
-
-    if (timerImmediateAdvanceRoundRef.current === rn) return
-    timerImmediateAdvanceRoundRef.current = rn
-    void nextPictionaryRound(roomId, { ifCurrentRoundNumber: rn }).catch(() => {
-      timerImmediateAdvanceRoundRef.current = null
-    })
-  }, [timeLeft, timerTick, game?.status, game?.currentRound, roomId])
+    void (async () => {
+      try {
+        const result = await nextPictionaryRound(roomId, { ifCurrentRoundNumber: rn })
+        if (result === 'noop') {
+          timerExpireHandledRoundRef.current = null
+          return
+        }
+        if (result === 'revealed_only') {
+          window.setTimeout(() => {
+            void nextPictionaryRound(roomId, { ifCurrentRoundNumber: rn })
+          }, PICTIONARY_POST_REVEAL_DELAY_MS)
+        }
+      } catch {
+        timerExpireHandledRoundRef.current = null
+      }
+    })()
+  }, [timeLeft, timerTick, game?.status, game?.currentRound?.roundNumber, roomId])
 
   const roundGuessLog = useMemo(() => {
     if (!currentRound || !game?.guess_log?.length) return []
@@ -423,7 +401,7 @@ function PictionaryGameContent() {
               題庫：{getWordBankLabel(game.wordBankId ?? 'general')}
             </div>
             <p className="mb-3 text-xs text-gray-500">
-              答對順序：第 1 位 5 分、第 2 位 4 分、第 3 位 3 分…（作畫者與答對者同分）；公開答案前其他人仍可搶答。所有人（作畫者除外）都答對時會自動換題；若有人尚未答對就換題（倒數歸零或房主按「下一回合」），會先公布題目再進下一題。
+              答對順序：第 1 位 5 分、第 2 位 4 分、第 3 位 3 分…（作畫者與答對者同分）；公開答案前其他人仍可搶答。所有人（作畫者除外）都答對時會自動換題；若有人尚未答對就換題（倒數歸零或房主按「下一回合」），會先公布題目，約 {Math.round(PICTIONARY_POST_REVEAL_DELAY_MS / 1000)} 秒後再進下一題。
             </p>
             <div className="mb-3 text-sm text-gray-300">
               {isDrawer || currentRound.isRevealed ? `題目：${currentRound.word}` : '題目：？？？'}
@@ -457,7 +435,16 @@ function PictionaryGameContent() {
                     公開答案
                   </button>
                   <button
-                    onClick={() => nextPictionaryRound(roomId)}
+                    type="button"
+                    onClick={async () => {
+                      const rn = currentRound.roundNumber
+                      const result = await nextPictionaryRound(roomId)
+                      if (result === 'revealed_only') {
+                        window.setTimeout(() => {
+                          void nextPictionaryRound(roomId, { ifCurrentRoundNumber: rn })
+                        }, PICTIONARY_POST_REVEAL_DELAY_MS)
+                      }
+                    }}
                     disabled={game.status === 'finished'}
                     className="rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:bg-gray-700 disabled:opacity-60 px-3 py-1.5 text-sm font-semibold"
                   >

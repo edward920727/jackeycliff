@@ -7,7 +7,6 @@ import {
   persistentMultipleTabManager,
   type Firestore,
 } from 'firebase/firestore'
-import { getAnalytics, Analytics } from 'firebase/analytics'
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -23,7 +22,6 @@ const firebaseConfig = {
 // Initialize Firebase
 let app: FirebaseApp
 let db: Firestore
-let analytics: Analytics | null = null
 
 // Initialize app (works on both client and server)
 if (getApps().length === 0) {
@@ -45,14 +43,4 @@ if (typeof window !== 'undefined') {
   db = getFirestore(app)
 }
 
-// Initialize Analytics only in browser
-if (typeof window !== 'undefined') {
-  try {
-    analytics = getAnalytics(app)
-  } catch (error) {
-    // Analytics might fail if already initialized
-    console.warn('Analytics initialization failed:', error)
-  }
-}
-
-export { app, db, analytics }
+export { app, db }

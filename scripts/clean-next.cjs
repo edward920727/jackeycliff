@@ -6,13 +6,35 @@ const fs = require('fs')
 const path = require('path')
 
 const root = path.join(__dirname, '..')
+
+function readNextDistDirFromEnvLocal() {
+  try {
+    const p = path.join(root, '.env.local')
+    if (!fs.existsSync(p)) return null
+    const text = fs.readFileSync(p, 'utf8')
+    for (const line of text.split(/\n/)) {
+      const trimmed = line.trim()
+      if (!trimmed || trimmed.startsWith('#')) continue
+      const m = trimmed.match(/^NEXT_DIST_DIR=(.*)$/)
+      if (m) return m[1].trim().replace(/^["']|["']$/g, '')
+    }
+  } catch {
+    /* ignore */
+  }
+  return null
+}
+
+const extraDist = process.env.NEXT_DIST_DIR || readNextDistDirFromEnvLocal()
 const targets = ['.next', path.join('node_modules', '.cache')]
+if (extraDist) {
+  targets.push(path.resolve(extraDist))
+}
 
 for (const rel of targets) {
-  const abs = path.join(root, rel)
+  const abs = path.isAbsolute(rel) ? rel : path.join(root, rel)
   try {
     fs.rmSync(abs, { recursive: true, force: true })
-    process.stdout.write(`clean-next: removed ${rel}\n`)
+    process.stdout.write(`clean-next: removed ${path.isAbsolute(rel) ? abs : rel}\n`)
   } catch {
     // ignore
   }

@@ -403,24 +403,27 @@ export async function submitPictionaryGuess(
   return { correct: true, rank, points: pts }
 }
 
+/** `nextPictionaryRound` 的結果：僅公布、已換回合、已結束、或無操作 */
+export type NextPictionaryRoundResult = 'noop' | 'revealed_only' | 'advanced' | 'finished'
+
 /** 手動「下一回合」不傳 opts；計時器自動換題請傳 ifCurrentRoundNumber 避免多人同時推進兩次。 */
 export async function nextPictionaryRound(
   roomId: string,
   opts?: { ifCurrentRoundNumber?: number }
-): Promise<void> {
+): Promise<NextPictionaryRoundResult> {
   const ref = doc(db, COLLECTION_NAME, roomId)
-  await runTransaction(db, async (transaction) => {
+  return runTransaction(db, async (transaction): Promise<NextPictionaryRoundResult> => {
     const snap = await transaction.get(ref)
     if (!snap.exists()) throw new Error('房間不存在')
     const data = snap.data() as PictionaryGameData
-    if (data.status === 'finished') return
-    if (!data.currentRound) return
+    if (data.status === 'finished') return 'noop'
+    if (!data.currentRound) return 'noop'
 
     if (
       opts?.ifCurrentRoundNumber != null &&
       data.currentRound.roundNumber !== opts.ifCurrentRoundNumber
     ) {
-      return
+      return 'noop'
     }
 
     const round = data.currentRound
@@ -432,7 +435,7 @@ export async function nextPictionaryRound(
         currentRound: { ...round, isRevealed: true },
         updated_at: new Date(),
       })
-      return
+      return 'revealed_only'
     }
 
     const nextRoundNumber = data.currentRound.roundNumber + 1
@@ -446,7 +449,7 @@ export async function nextPictionaryRound(
         strokeInProgress: null,
         updated_at: new Date(),
       })
-      return
+      return 'finished'
     }
 
     const usedArr = [...(data.used_words || [])]
@@ -464,6 +467,7 @@ export async function nextPictionaryRound(
       guess_log: [],
       updated_at: new Date(),
     })
+    return 'advanced'
   })
 }
 
