@@ -126,7 +126,8 @@ export function GameLayout({
           <div className="pointer-events-auto">{logPanel}</div>
         </div>
 
-        <div className="pointer-events-none absolute bottom-[min(28vh,240px)] right-2 z-40 max-w-[min(48vw,220px)] sm:bottom-[min(30vh,260px)] sm:right-3">
+        {/* 提升層級：避免被頁面底部 fixed 手牌區（z-50）擋住，手機上才能點到「放陷阱」等浮動按鈕 */}
+        <div className="pointer-events-none absolute bottom-[min(28vh,240px)] right-2 z-[90] max-w-[min(48vw,220px)] sm:bottom-[min(30vh,260px)] sm:right-3">
           <div className="pointer-events-auto flex flex-col items-end gap-1.5">{floatingActions}</div>
         </div>
       </div>
