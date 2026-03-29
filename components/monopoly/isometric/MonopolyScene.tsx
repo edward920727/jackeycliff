@@ -18,6 +18,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 
 type Props = {
   state: GameState
+  /** 開局設定人數；可能小於 state.players.length（未重開時）時只顯示前 N 名棋子 */
+  playerCount: number
   resetSeq: number
   diceSpinning: boolean
   /** 有值時鏡頭跟隨該玩家格（走棋），null 時跟隨 state.currentPlayer */
@@ -75,7 +77,7 @@ function MoneyPop({
   )
 }
 
-function MonopolySceneContent({ state, resetSeq, diceSpinning, cameraFollowPlayerId }: Props) {
+function MonopolySceneContent({ state, playerCount, resetSeq, diceSpinning, cameraFollowPlayerId }: Props) {
   const { woodDiff, woodNor, woodRough, grassDiff, grassNor } = useMonopolyBoardTextures()
   const boardTex = useMemo(
     () => ({ woodDiff, woodNor, woodRough }),
@@ -85,6 +87,7 @@ function MonopolySceneContent({ state, resetSeq, diceSpinning, cameraFollowPlaye
 
   const focusPlayerIndex = (() => {
     if (state.phase === 'gameover') return state.currentPlayer
+    if (state.phase === 'moving' && state.pendingMove) return state.pendingMove.playerId
     if (
       cameraFollowPlayerId != null &&
       state.players[cameraFollowPlayerId] &&
@@ -148,10 +151,10 @@ function MonopolySceneContent({ state, resetSeq, diceSpinning, cameraFollowPlaye
       })}
 
       {state.players
-        .filter((p) => !p.bankrupt)
+        .filter((p) => !p.bankrupt && p.id < playerCount)
         .map((p) => {
           const sameCell = state.players
-            .filter((o) => !o.bankrupt && o.position === p.position)
+            .filter((o) => !o.bankrupt && o.id < playerCount && o.position === p.position)
             .sort((a, b) => a.id - b.id)
           const slot = sameCell.findIndex((x) => x.id === p.id)
           const totalOnCell = sameCell.length

@@ -140,6 +140,7 @@ export function IsometricMonopolyBoard({
         <Suspense fallback={null}>
           <MonopolyScene
             state={state}
+            playerCount={playerCount}
             resetSeq={resetSeq}
             diceSpinning={sceneDiceSpinning}
             cameraFollowPlayerId={cameraFollowPlayerId}
@@ -368,6 +369,18 @@ export function IsometricMonopolyBoard({
                 animate={{ y: 0, opacity: 1 }}
                 className="space-y-1 rounded-xl border-2 border-white/80 bg-white/90 p-1.5 shadow-2xl backdrop-blur-md sm:space-y-2 sm:p-2 md:rounded-2xl md:p-3"
               >
+                {state.phase === 'moving' && state.pendingMove && state.pendingMove.playerId === current.id && (
+                  <>
+                    <GameButton
+                      type="button"
+                      variant="primary"
+                      disabled={isRolling}
+                      onClick={() => dispatch({ type: 'MOVE_STEP' })}
+                    >
+                      前進一格（剩 {state.pendingMove.stepsRemaining} 步）
+                    </GameButton>
+                  </>
+                )}
                 {state.phase === 'roll' && (
                   <>
                     {current.inJail ? (

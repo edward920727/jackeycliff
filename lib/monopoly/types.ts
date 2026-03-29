@@ -119,8 +119,10 @@ export interface GameState {
       }
   drawnCardSeq: number
   currentPlayer: number
-  /** 等待擲骰 / 移動後結算 / 可購地 / 抽卡顯示 */
-  phase: 'roll' | 'buy_prompt' | 'gameover'
+  /** 等待擲骰 / 手動逐步前進 / 可購地 / 抽卡顯示 */
+  phase: 'roll' | 'moving' | 'buy_prompt' | 'gameover'
+  /** 擲骰後逐步走棋：剩餘步數；走完最後一步才 resolveLanding */
+  pendingMove: null | { playerId: number; stepsRemaining: number }
   dice: [number, number] | null
   lastMessage: string
   /** 本回合是否雙骰（可再骰一次，簡化為僅記錄） */

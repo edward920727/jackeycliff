@@ -46,7 +46,7 @@ function GltfMascot({ playerId }: { playerId: number }) {
     const fit0 = new THREE.Box3().setFromObject(r)
     const size0 = fit0.getSize(new THREE.Vector3())
     const max = Math.max(size0.x, size0.y, size0.z, 1e-4)
-    const s = 0.52 / max
+    const s = 0.72 / max
     r.scale.setScalar(s)
     r.position.set(0, 0, 0)
     r.updateMatrixWorld(true)
@@ -74,8 +74,8 @@ export function TokenPawn({ cellIndex, playerId, slot, totalOnCell }: Props) {
   const applyPosition = (x: number, z: number, yExtra: number) => {
     if (!groupRef.current) return
     const [ox, oz] = tokenSlotOffset(slot, totalOnCell)
-    const baseY = 0.48
-    const hop = Math.sin(Math.min(jumpRef.current, 1) * Math.PI) * 0.55
+    const baseY = 0.56
+    const hop = Math.sin(Math.min(jumpRef.current, 1) * Math.PI) * 0.62
     groupRef.current.position.set(x + ox, baseY + hop + yExtra, z + oz)
   }
 
@@ -205,11 +205,11 @@ export function TokenPawn({ cellIndex, playerId, slot, totalOnCell }: Props) {
 
   return (
     <group ref={groupRef}>
-      <group position={[0, -0.06, 0]}>
+      <group position={[0, -0.04, 0]}>
         <GltfMascot playerId={playerId} />
       </group>
-      <mesh position={[0, -0.46, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[0.26, 0.4, 32]} />
+      <mesh position={[0, -0.52, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[0.34, 0.52, 32]} />
         <meshBasicMaterial color="#000000" transparent opacity={0.38} />
       </mesh>
     </group>

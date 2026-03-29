@@ -186,6 +186,7 @@ function bankruptPlayer(state: GameState, playerId: number): GameState {
     fullSetOwners,
     moneyFx,
     players,
+    pendingMove: null,
     lastMessage: `${state.players.find((x) => x.id === playerId)?.name ?? '玩家'} 破產出局！`,
   }
   s = checkWinner(s)
@@ -194,6 +195,19 @@ function bankruptPlayer(state: GameState, playerId: number): GameState {
   s.phase = 'roll'
   s.dice = null
   return s
+}
+
+/** 前進一格（逐步走棋用）；從第 39 格走到第 0 格時領起點獎金 */
+function stepPlayerOnce(p: PlayerState): { player: PlayerState; crossedGo: boolean } {
+  const old = p.position
+  const newPos = (old + 1) % BOARD_LEN
+  let money = p.money
+  let crossed = false
+  if (old === BOARD_LEN - 1) {
+    money += GO_BONUS
+    crossed = true
+  }
+  return { player: { ...p, position: newPos, money }, crossedGo: crossed }
 }
 
 function movePlayer(
@@ -274,6 +288,7 @@ export function createInitialState(names: string[]): GameState {
     drawnCardSeq: 0,
     currentPlayer: 0,
     phase: 'roll',
+    pendingMove: null,
     dice: null,
     lastMessage: '擲骰開始你的回合！',
     doublesCount: 0,
@@ -294,6 +309,7 @@ export type GameAction =
   | { type: 'CLEAR_FULL_SET_TOAST'; id: number }
   | { type: 'CLEAR_DRAWN_CARD'; id: number }
   | { type: 'USE_JAIL_CARD'; d1?: number; d2?: number }
+  | { type: 'MOVE_STEP' }
 
 function getCurrent(state: GameState): PlayerState {
   return state.players[state.currentPlayer]
@@ -568,12 +584,16 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       if (cur.inJail) {
         if (d1 === d2) {
           const freed = { ...cur, inJail: false, jailTurns: 0 }
-          const { player: moved, passedGo } = movePlayer(freed, sum, true)
-          return resolveLanding(
-            { ...state, dice: [d1, d2], doublesCount: state.doublesCount + 1 },
-            moved,
-            passedGo
-          )
+          const players = state.players.map((p) => (p.id === cur.id ? freed : p))
+          return {
+            ...state,
+            players,
+            dice: [d1, d2],
+            phase: 'moving',
+            pendingMove: { playerId: freed.id, stepsRemaining: sum },
+            doublesCount: state.doublesCount + 1,
+            lastMessage: `監獄擲出雙數！請按「前進一格」走 ${sum} 步。`,
+          }
         }
         return {
           ...state,
@@ -584,8 +604,40 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         }
       }
 
-      const { player: moved, passedGo } = movePlayer(cur, sum, true)
-      return resolveLanding({ ...state, dice: [d1, d2] }, moved, passedGo)
+      return {
+        ...state,
+        dice: [d1, d2],
+        phase: 'moving',
+        pendingMove: { playerId: cur.id, stepsRemaining: sum },
+        lastMessage: `擲出 ${d1}+${d2}=${sum}，請按「前進一格」自己走棋。`,
+      }
+    }
+
+    case 'MOVE_STEP': {
+      if (state.phase !== 'moving' || !state.pendingMove) return state
+      const pm = state.pendingMove
+      const cur = getCurrent(state)
+      if (!cur || cur.bankrupt || cur.id !== pm.playerId) return state
+      if (pm.stepsRemaining <= 0) return state
+
+      const { player: stepped, crossedGo } = stepPlayerOnce(cur)
+      const players = state.players.map((p) => (p.id === cur.id ? stepped : p))
+      const newRem = pm.stepsRemaining - 1
+
+      if (newRem > 0) {
+        return {
+          ...state,
+          players,
+          pendingMove: { playerId: pm.playerId, stepsRemaining: newRem },
+          lastMessage: crossedGo
+            ? `經過起點，領取 $${GO_BONUS}！還剩 ${newRem} 步。`
+            : `還剩 ${newRem} 步，繼續前進。`,
+        }
+      }
+
+      const movedPlayer = players.find((x) => x.id === pm.playerId)!
+      const landed = resolveLanding({ ...state, players, pendingMove: null, dice: state.dice }, movedPlayer, false)
+      return { ...landed, pendingMove: null }
     }
 
     case 'JAIL_PAY': {
@@ -597,11 +649,18 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         return bankruptPlayer(state, cur.id)
       }
       const paid = { ...cur, money: cur.money - fee, inJail: false, jailTurns: 0 }
+      const players = state.players.map((p) => (p.id === cur.id ? paid : p))
       const d1 = action.d1 !== undefined ? clampDie(action.d1) : randDie()
       const d2 = action.d2 !== undefined ? clampDie(action.d2) : randDie()
       const sum = d1 + d2
-      const { player: moved, passedGo } = movePlayer(paid, sum, true)
-      return resolveLanding({ ...state, dice: [d1, d2] }, moved, passedGo)
+      return {
+        ...state,
+        players,
+        dice: [d1, d2],
+        phase: 'moving',
+        pendingMove: { playerId: paid.id, stepsRemaining: sum },
+        lastMessage: `付 $${fee} 出獄，請按「前進一格」走 ${sum} 步。`,
+      }
     }
 
     case 'USE_JAIL_CARD': {
@@ -610,11 +669,18 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       if (!cur.inJail || cur.bankrupt) return state
       if ((cur.getOutOfJailCards ?? 0) <= 0) return state
       const freed = { ...cur, inJail: false, jailTurns: 0, getOutOfJailCards: cur.getOutOfJailCards - 1 }
+      const players = state.players.map((p) => (p.id === cur.id ? freed : p))
       const d1 = action.d1 !== undefined ? clampDie(action.d1) : randDie()
       const d2 = action.d2 !== undefined ? clampDie(action.d2) : randDie()
       const sum = d1 + d2
-      const { player: moved, passedGo } = movePlayer(freed, sum, true)
-      return resolveLanding({ ...state, dice: [d1, d2] }, moved, passedGo)
+      return {
+        ...state,
+        players,
+        dice: [d1, d2],
+        phase: 'moving',
+        pendingMove: { playerId: freed.id, stepsRemaining: sum },
+        lastMessage: `使用出獄卡，請按「前進一格」走 ${sum} 步。`,
+      }
     }
 
     case 'BUY': {
