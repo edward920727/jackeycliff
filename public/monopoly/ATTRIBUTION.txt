@@ -1,4 +1,4 @@
-Textures (CC0): Poly Haven — wood_floor, aerial_grass_rock
+Textures (CC0): Poly Haven — wood_floor, aerial_grass_rock, rock_face
 https://polyhaven.com/
 
 3D models (Khronos glTF Sample Models): Duck, RiggedFigure, BarramundiFish, DragonAttenuation
