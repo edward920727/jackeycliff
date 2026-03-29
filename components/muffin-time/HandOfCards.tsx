@@ -31,6 +31,7 @@ export function HandOfCards({ cardIds, hoveredIndex, onHoverIndex, highlight }: 
         highlight ? 'rounded-xl ring-2 ring-amber-400/35 shadow-[0_0_20px_rgba(251,191,36,0.22)]' : '',
       ].join(' ')}
       onMouseLeave={() => onHoverIndex(null)}
+      onPointerLeave={() => onHoverIndex(null)}
     >
       {cardIds.map((cid, idx) => {
         const def = getCardDef(cid)
@@ -51,11 +52,12 @@ export function HandOfCards({ cardIds, hoveredIndex, onHoverIndex, highlight }: 
               'transition-[transform,opacity,filter] duration-200 ease-out motion-reduce:transition-none motion-reduce:duration-0',
               idx === 0 ? '' : '-ml-[6.25vw] sm:-ml-[2.65rem]',
               /* 小螢幕避免 blur（GPU）；僅 md+ 用輕 blur 區分焦點 */
-              isDimmed ? 'brightness-[0.55] opacity-65 md:blur-[0.5px]' : '',
+              isDimmed ? 'md:brightness-[0.55] md:opacity-65 md:blur-[0.5px]' : '',
             ].join(' ')}
             style={{ zIndex: isHovered ? 100 : zBase, transform }}
             onMouseEnter={() => onHoverIndex(idx)}
             onPointerDown={() => onHoverIndex(idx)}
+            onClick={() => onHoverIndex(hoveredIndex === idx ? null : idx)}
           >
             <div className="line-clamp-2 text-[10px] font-semibold leading-tight text-amber-50 sm:text-[11px]">
               {def?.name ?? cid}
