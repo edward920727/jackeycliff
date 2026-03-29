@@ -145,6 +145,8 @@ function bankruptPlayer(state: GameState, playerId: number): GameState {
   for (let i = 0; i < owners.length; i++) {
     if (owners[i] === playerId) owners[i] = null
   }
+  // 若剛好在顯示跳字，直接清掉避免留在畫面上
+  const moneyFx = state.moneyFx?.entries?.some((e) => e.playerId === playerId) ? null : state.moneyFx
   const fullSetOwners = computeFullSetOwners(owners)
   const players = state.players.map((p) =>
     p.id === playerId ? { ...p, bankrupt: true, money: 0 } : p
@@ -153,6 +155,7 @@ function bankruptPlayer(state: GameState, playerId: number): GameState {
     ...state,
     owners,
     fullSetOwners,
+    moneyFx,
     players,
     lastMessage: `${state.players.find((x) => x.id === playerId)?.name ?? '玩家'} 破產出局！`,
   }
@@ -197,6 +200,8 @@ export function createInitialState(names: string[]): GameState {
     players,
     owners,
     fullSetOwners: computeFullSetOwners(owners),
+    moneyFx: null,
+    moneyFxSeq: 0,
     currentPlayer: 0,
     phase: 'roll',
     dice: null,
@@ -213,6 +218,7 @@ export type GameAction =
   | { type: 'JAIL_PAY'; d1?: number; d2?: number }
   | { type: 'BUY' }
   | { type: 'SKIP_BUY' }
+  | { type: 'CLEAR_MONEY_FX'; id: number }
 
 function getCurrent(state: GameState): PlayerState {
   return state.players[state.currentPlayer]
@@ -353,6 +359,14 @@ function resolveLanding(state: GameState, movedPlayer: PlayerState, passedGoMsg:
       players,
       phase: 'roll',
       lastMessage: lastMessage + ` 付給 ${afterO.name} 租金 $${rent}。${monoNote}`,
+      moneyFx: {
+        id: base.moneyFxSeq + 1,
+        entries: [
+          { playerId: pid, amount: -rent },
+          { playerId: owner, amount: rent },
+        ],
+      },
+      moneyFxSeq: base.moneyFxSeq + 1,
       dice: null,
       currentPlayer: nextAliveIndex({ ...base, players }, base.currentPlayer),
     }
@@ -377,6 +391,11 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
     case 'NEW_GAME':
       return createInitialState(action.names)
+
+    case 'CLEAR_MONEY_FX': {
+      if (!state.moneyFx || state.moneyFx.id !== action.id) return state
+      return { ...state, moneyFx: null }
+    }
 
     case 'ROLL': {
       if (state.phase !== 'roll') return state

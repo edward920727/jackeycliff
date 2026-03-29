@@ -14,6 +14,7 @@ import { MapViewControls } from './MapViewControls'
 import { playerColor } from '@/lib/monopoly/playerColors'
 import { useOrthoHtmlDistanceFactor } from './useOrthoHtmlDistanceFactor'
 import { useMonopolyBoardTextures } from './useMonopolyBoardTextures'
+import { motion, AnimatePresence } from 'framer-motion'
 
 type Props = {
   state: GameState
@@ -34,6 +35,42 @@ function BuyPromptBubble({
   return (
     <Html position={position} center distanceFactor={distanceFactor}>
       {children}
+    </Html>
+  )
+}
+
+function MoneyPop({
+  playerId,
+  amount,
+  state,
+}: {
+  playerId: number
+  amount: number
+  state: GameState
+}) {
+  const p = state.players[playerId]
+  if (!p || p.bankrupt) return null
+  const xz = cellIndexToXZ(p.position)
+  if (!xz) return null
+  const distanceFactor = useOrthoHtmlDistanceFactor()
+  const isPlus = amount > 0
+  const txt = `${isPlus ? '+' : '-'}$${Math.abs(amount)}`
+  return (
+    <Html position={[xz[0], 1.9, xz[1]]} center distanceFactor={distanceFactor} occlude={false}>
+      <motion.div
+        initial={{ opacity: 0, y: 10, scale: 0.92 }}
+        animate={{ opacity: 1, y: -18, scale: 1 }}
+        exit={{ opacity: 0, y: -26, scale: 0.98 }}
+        transition={{ type: 'spring', stiffness: 520, damping: 26 }}
+        className={[
+          'pointer-events-none select-none rounded-full border-2 px-3 py-1 text-sm font-extrabold tracking-tight shadow-lg backdrop-blur-md',
+          isPlus
+            ? 'border-emerald-200/90 bg-emerald-50/85 text-emerald-800 shadow-[0_12px_30px_rgba(16,185,129,0.18)]'
+            : 'border-rose-200/90 bg-rose-50/85 text-rose-700 shadow-[0_12px_30px_rgba(244,63,94,0.16)]',
+        ].join(' ')}
+      >
+        {txt}
+      </motion.div>
     </Html>
   )
 }
@@ -67,7 +104,10 @@ function MonopolySceneContent({ state, resetSeq, diceSpinning, cameraFollowPlaye
 
   return (
     <>
-      <MapViewControls focusWorld={focusWorld} />
+      <MapViewControls
+        focusWorld={focusWorld}
+        cinematicMode={diceSpinning ? 'roll' : cameraFollowPlayerId != null ? 'move' : 'idle'}
+      />
       <Environment preset="city" environmentIntensity={0.55} />
       <ambientLight intensity={0.72} />
       <hemisphereLight args={['#e8f4fc', '#5a8f5e', 0.5]} />
@@ -75,6 +115,12 @@ function MonopolySceneContent({ state, resetSeq, diceSpinning, cameraFollowPlaye
       <directionalLight position={[-10, 16, -8]} intensity={0.42} color="#fef9c3" />
 
       <BoardEnvironment grass={grass} />
+
+      <AnimatePresence>
+        {state.moneyFx?.entries?.map((e) => (
+          <MoneyPop key={`${state.moneyFx?.id}-${e.playerId}-${e.amount}`} playerId={e.playerId} amount={e.amount} state={state} />
+        ))}
+      </AnimatePresence>
 
       {BOARD.map((cell, i) => {
         const pos = cellIndexToXZ(i)

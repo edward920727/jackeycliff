@@ -64,6 +64,7 @@ export function TokenPawn({ cellIndex, playerId, slot, totalOnCell }: Props) {
   const jumpRef = useRef(0)
   const groupRef = useRef<THREE.Group>(null)
   const { invalidate } = useThree()
+  const yawRef = useRef(0)
 
   /** 動畫結束後與 state.position 一致；動畫中為起點格 */
   const stableCellRef = useRef(cellIndex)
@@ -153,6 +154,16 @@ export function TokenPawn({ cellIndex, playerId, slot, totalOnCell }: Props) {
       }
       const x = c0[0] + (c1[0] - c0[0]) * alpha
       const z = c0[1] + (c1[1] - c0[1]) * alpha
+      // 轉向：朝向下一格方向（平滑）
+      const dx = c1[0] - c0[0]
+      const dz = c1[1] - c0[1]
+      if (Math.abs(dx) + Math.abs(dz) > 1e-6) {
+        const targetYaw = Math.atan2(dx, dz) // y 軸：z 向前、x 向右
+        const a = THREE.MathUtils.euclideanModulo(targetYaw - yawRef.current + Math.PI, Math.PI * 2) - Math.PI
+        const turnK = 1 - Math.exp(-delta * 9.5)
+        yawRef.current = yawRef.current + a * turnK
+        groupRef.current.rotation.y = yawRef.current
+      }
       const prevSeg = Math.floor((anim.t - delta) / SECONDS_PER_CELL)
       if (i > prevSeg) {
         jumpRef.current = 1
@@ -167,6 +178,15 @@ export function TokenPawn({ cellIndex, playerId, slot, totalOnCell }: Props) {
       const a = smoothStep01(anim.t / FLY_DURATION)
       const x = anim.from[0] + (anim.to[0] - anim.from[0]) * a
       const z = anim.from[1] + (anim.to[1] - anim.from[1]) * a
+      const dx = anim.to[0] - anim.from[0]
+      const dz = anim.to[1] - anim.from[1]
+      if (Math.abs(dx) + Math.abs(dz) > 1e-6) {
+        const targetYaw = Math.atan2(dx, dz)
+        const diff = THREE.MathUtils.euclideanModulo(targetYaw - yawRef.current + Math.PI, Math.PI * 2) - Math.PI
+        const turnK = 1 - Math.exp(-delta * 7.5)
+        yawRef.current = yawRef.current + diff * turnK
+        groupRef.current.rotation.y = yawRef.current
+      }
       if (anim.t >= FLY_DURATION) {
         stableCellRef.current = target
         animRef.current = null

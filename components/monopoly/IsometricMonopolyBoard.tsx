@@ -65,6 +65,13 @@ export function IsometricMonopolyBoard({
     if (state.phase === 'gameover') setCameraFollowPlayerId(null)
   }, [state.phase])
 
+  useEffect(() => {
+    if (!state.moneyFx) return
+    const id = state.moneyFx.id
+    const t = window.setTimeout(() => dispatch({ type: 'CLEAR_MONEY_FX', id }), 1200)
+    return () => window.clearTimeout(t)
+  }, [state.moneyFx, dispatch])
+
   const onRestart = () => {
     startGame()
     setResetSeq((s) => s + 1)

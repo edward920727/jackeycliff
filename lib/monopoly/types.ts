@@ -87,6 +87,12 @@ export interface GameState {
    * key = PropertyCell.group；value = 該組被哪位玩家湊齊（null = 尚未湊齊）
    */
   fullSetOwners: Record<string, number | null>
+  /** 付租金跳字特效（一次只顯示一組） */
+  moneyFx: null | {
+    id: number
+    entries: { playerId: number; amount: number }[]
+  }
+  moneyFxSeq: number
   currentPlayer: number
   /** 等待擲骰 / 移動後結算 / 可購地 / 抽卡顯示 */
   phase: 'roll' | 'buy_prompt' | 'gameover'
