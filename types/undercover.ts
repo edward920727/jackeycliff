@@ -51,6 +51,9 @@ export interface UndercoverGameData {
   /** 本局使用的詞彙（平民詞 / 臥底詞） */
   words?: UndercoverWords
 
+  /** 近期用過的平民詞（同一房間開新局時優先避開，減少重複題） */
+  recent_civilian_words?: string[]
+
   /** 目前是第幾輪描述 / 投票（純顯示用，不強制規則） */
   currentRound?: number
 

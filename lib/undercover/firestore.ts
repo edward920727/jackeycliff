@@ -22,7 +22,7 @@ import type {
   UndercoverRole,
   UndercoverEliminationVote,
 } from '@/types/undercover'
-import { getRandomWordPair } from './constants'
+import { appendRecentCivilian, pickWordPair } from './constants'
 
 const COLLECTION_NAME = 'undercover_games'
 
@@ -138,7 +138,8 @@ export async function startUndercoverGame(
   const safeBlankCount = Math.max(0, Math.min(normalizedBlankCount, maxBlankCount))
   const shuffled = [...participants].sort(() => Math.random() - 0.5)
 
-  const wordPair = getRandomWordPair()
+  const wordPair = pickWordPair(data.recent_civilian_words || [])
+  const recent_civilian_words = appendRecentCivilian(data.recent_civilian_words, wordPair.civilian)
 
   // 先決定座位，再隨機抽座位當臥底（避免每局固定「玩家1」是臥底）
   const undercoverSeatSet = new Set<number>()
@@ -178,6 +179,7 @@ export async function startUndercoverGame(
     undercoverCount: safeUndercoverCount,
     blankCount: safeBlankCount,
     words: wordPair,
+    recent_civilian_words,
     currentRound: 1,
     eliminatedSeats: [],
     votes: [],
