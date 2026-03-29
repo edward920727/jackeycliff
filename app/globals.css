@@ -80,7 +80,30 @@
     background: linear-gradient(145deg, #6d28d9 0%, #db2777 42%, #f97316 88%);
   }
 
+  /* Monopoly page background: plane-window sky image */
+  .weplay-plane-window-bg {
+    background-image: url('/monopoly/backgrounds/plane-window.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-color: #bfe3ff;
+  }
+
   .weplay-blob {
     animation: weplay-shimmer 8s ease-in-out infinite;
+  }
+
+  @keyframes monopoly-board-float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-8px);
+    }
+  }
+
+  .monopoly-board-float {
+    animation: monopoly-board-float 8s ease-in-out infinite;
   }
 }

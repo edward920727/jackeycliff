@@ -10,13 +10,13 @@ type Props = {
 /** 旅遊大亨風：每格上方的小型程式化地標 */
 export function TileLandmark({ cell }: Props) {
   const accent =
-    cell.kind === 'property' || cell.kind === 'railroad' || cell.kind === 'tax'
+    cell.kind === 'property' || cell.kind === 'railroad' || cell.kind === 'utility' || cell.kind === 'tax'
       ? cellStripColor(cell)
       : '#cbd5e1'
 
   const goBoost = cell.kind === 'go'
   return (
-    <group position={[0, 0.26, 0.36]} scale={goBoost ? 0.52 : 0.44}>
+    <group position={[0, 0.24, 0.38]} scale={goBoost ? 0.54 : 0.46}>
       <LandmarkMesh cell={cell} accent={accent} />
     </group>
   )
@@ -114,6 +114,7 @@ function LandmarkMesh({ cell, accent }: { cell: BoardCellDef; accent: string }) 
 
     case 'ch1':
     case 'ch2':
+    case 'ch3':
       return (
         <group>
           <mesh position={[0, 0.45, 0]} castShadow>
@@ -129,6 +130,7 @@ function LandmarkMesh({ cell, accent }: { cell: BoardCellDef; accent: string }) 
 
     case 'chest1':
     case 'chest2':
+    case 'chest3':
       return (
         <group>
           <mesh position={[0, 0.22, 0]} castShadow>
@@ -161,6 +163,8 @@ function LandmarkMesh({ cell, accent }: { cell: BoardCellDef; accent: string }) 
 
     case 'r1':
     case 'r2':
+    case 'r3':
+    case 'r4':
       return (
         <group>
           <mesh position={[0, 0.2, 0]} castShadow>
@@ -180,54 +184,17 @@ function LandmarkMesh({ cell, accent }: { cell: BoardCellDef; accent: string }) 
         </group>
       )
 
-    case 'p12':
+    case 'u1':
+    case 'u2':
       return (
-        <group scale={0.85}>
+        <group>
           <mesh position={[0, 0.18, 0]} castShadow>
-            <boxGeometry args={[0.35, 0.32, 0.35]} />
-            <meshStandardMaterial color="#cbd5e1" {...m} />
+            <cylinderGeometry args={[0.22, 0.28, 0.36, 10]} />
+            <meshStandardMaterial color="#e0f2fe" {...m} />
           </mesh>
-          <mesh position={[0, 0.48, 0]} castShadow>
-            <boxGeometry args={[0.28, 0.4, 0.28]} />
-            <meshStandardMaterial color="#86efac" {...m} emissive="#4ade80" emissiveIntensity={0.12} />
-          </mesh>
-          <mesh position={[0, 0.82, 0]} castShadow>
-            <boxGeometry args={[0.2, 0.45, 0.2]} />
-            <meshStandardMaterial color="#4ade80" {...m} emissive="#22c55e" emissiveIntensity={0.1} />
-          </mesh>
-          <mesh position={[0, 1.2, 0]} castShadow>
-            <boxGeometry args={[0.14, 0.35, 0.14]} />
-            <meshStandardMaterial color="#22c55e" {...m} />
-          </mesh>
-        </group>
-      )
-
-    case 'p9':
-      return (
-        <group>
-          <mesh position={[0, 0.25, 0]} castShadow>
-            <coneGeometry args={[0.5, 0.45, 6]} />
-            <meshStandardMaterial color="#78716c" {...m} />
-          </mesh>
-          {[-0.22, 0.22].map((x) => (
-            <mesh key={x} position={[x, 0.55, 0.1]} castShadow>
-              <coneGeometry args={[0.2, 0.5, 6]} />
-              <meshStandardMaterial color="#15803d" {...m} />
-            </mesh>
-          ))}
-        </group>
-      )
-
-    case 'p7':
-      return (
-        <group>
-          <mesh position={[0, 0.08, 0]} castShadow rotation={[-Math.PI / 2, 0, 0]}>
-            <circleGeometry args={[0.45, 24]} />
-            <meshStandardMaterial color="#38bdf8" {...m} />
-          </mesh>
-          <mesh position={[0, 0.2, 0]} castShadow>
-            <boxGeometry args={[0.65, 0.08, 0.15]} />
-            <meshStandardMaterial color="#a16207" {...m} />
+          <mesh position={[0, 0.52, 0]} castShadow>
+            <boxGeometry args={[0.2, 0.45, 0.12]} />
+            <meshStandardMaterial color="#fbbf24" {...m} emissive="#f59e0b" emissiveIntensity={0.15} />
           </mesh>
         </group>
       )

@@ -16,17 +16,9 @@ export default function MonopolyGame() {
   }, [names, playerCount])
 
   return (
-    <div className="relative flex min-h-[100dvh] flex-col overflow-x-hidden weplay-gradient-bg font-game px-2 py-2 text-slate-800 sm:p-5">
+    <div className="weplay-plane-window-bg relative flex min-h-[100dvh] flex-col overflow-x-hidden font-game px-2 py-2 text-slate-800 sm:p-5">
       <div
-        className="weplay-blob pointer-events-none absolute -left-20 top-8 h-64 w-64 rounded-full bg-white/25 blur-3xl"
-        aria-hidden
-      />
-      <div
-        className="weplay-blob pointer-events-none absolute -right-12 bottom-16 h-72 w-72 rounded-full bg-amber-300/40 blur-3xl [animation-delay:-2s]"
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_40%_15%,rgba(255,255,255,0.22)_0%,transparent_45%)]"
+        className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.45)_0%,rgba(255,255,255,0.18)_45%,rgba(255,255,255,0.35)_100%)]"
         aria-hidden
       />
 
@@ -59,7 +51,7 @@ export default function MonopolyGame() {
         </motion.header>
 
         {/* 手機：flex-1 填滿剩餘視窗；桌面：固定高度，避免 h-full 鏈結失效導致地圖只剩一條線 */}
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col pb-[max(0.25rem,env(safe-area-inset-bottom,0px))] md:h-[min(76vh,780px)] md:min-h-[460px] md:max-h-[780px] md:flex-none">
+      <div className="monopoly-board-float flex min-h-0 min-w-0 flex-1 flex-col pb-[max(0.25rem,env(safe-area-inset-bottom,0px))] md:h-[min(76vh,780px)] md:min-h-[460px] md:max-h-[780px] md:flex-none">
           <IsometricMonopolyBoard
             names={names}
             setNames={setNames}

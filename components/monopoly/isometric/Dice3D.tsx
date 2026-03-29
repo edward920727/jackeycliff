@@ -1,9 +1,13 @@
 'use client'
 
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { RoundedBox } from '@react-three/drei'
+import {
+  buildDiceFaceTextures,
+  buildStandardDieMaterials,
+  disposeDieMaterials,
+} from './diceFaceTextures'
 
 type Props = {
   a: number
@@ -11,145 +15,136 @@ type Props = {
   spinning: boolean
 }
 
-/** 頂面朝下看：標準骰子點位 (x, z)，骰子中心在原點、y 朝上 */
-const PIP: Record<number, [number, number][]> = {
-  1: [[0, 0]],
-  2: [
-    [-0.2, -0.2],
-    [0.2, 0.2],
-  ],
-  3: [
-    [-0.2, -0.2],
-    [0, 0],
-    [0.2, 0.2],
-  ],
-  4: [
-    [-0.2, -0.2],
-    [0.2, -0.2],
-    [-0.2, 0.2],
-    [0.2, 0.2],
-  ],
-  5: [
-    [-0.2, -0.2],
-    [0.2, -0.2],
-    [0, 0],
-    [-0.2, 0.2],
-    [0.2, 0.2],
-  ],
-  6: [
-    [-0.22, -0.24],
-    [-0.22, 0],
-    [-0.22, 0.24],
-    [0.22, -0.24],
-    [0.22, 0],
-    [0.22, 0.24],
-  ],
-}
-
 function clampPip(n: number) {
   return Math.min(6, Math.max(1, Math.round(n)))
 }
 
-function SingleDie({ value }: { value: number }) {
+/** 標準骰子：材質貼在 Box 的 +X,-X,+Y,-Y,+Z,-Z；各面點數與面法向對應（相對面合 7） */
+const FACE_NORMAL: Record<number, THREE.Vector3> = {
+  1: new THREE.Vector3(0, 1, 0),
+  2: new THREE.Vector3(0, 0, 1),
+  3: new THREE.Vector3(1, 0, 0),
+  4: new THREE.Vector3(-1, 0, 0),
+  5: new THREE.Vector3(0, 0, -1),
+  6: new THREE.Vector3(0, -1, 0),
+}
+
+/** 六面貼圖骰子（共用材質）；停骰時將「v 點」那一面朝上（+Y） */
+function TexturedDie({
+  materials,
+  value,
+}: {
+  materials: THREE.MeshStandardMaterial[]
+  value: number
+}) {
+  const meshRef = useRef<THREE.Mesh>(null)
   const v = clampPip(value)
-  const pts = PIP[v] ?? PIP[1]
-  const half = 0.42
-  const pipY = half + 0.02
+
+  useEffect(() => {
+    const mesh = meshRef.current
+    if (!mesh) return
+    const from = FACE_NORMAL[v].clone()
+    const up = new THREE.Vector3(0, 1, 0)
+    mesh.quaternion.setFromUnitVectors(from, up)
+  }, [v])
 
   return (
-    <group>
-      <RoundedBox args={[0.84, 0.84, 0.84]} radius={0.08} smoothness={3} castShadow>
-        <meshStandardMaterial color="#fffef8" roughness={0.45} metalness={0.06} />
-      </RoundedBox>
-      {/* 頂面凹線感：淺邊框 */}
-      <mesh position={[0, half - 0.001, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[0.36, 0.39, 32]} />
-        <meshBasicMaterial color="#d6d3d1" transparent opacity={0.35} />
-      </mesh>
-      {pts.map(([px, pz], i) => (
-        <mesh key={i} position={[px, pipY, pz]} castShadow>
-          <sphereGeometry args={[0.065, 12, 12]} />
-          <meshStandardMaterial color="#1c1917" roughness={0.35} metalness={0.15} />
-        </mesh>
-      ))}
-    </group>
+    <mesh ref={meshRef} castShadow receiveShadow material={materials}>
+      <boxGeometry args={[0.78, 0.78, 0.78]} />
+    </mesh>
   )
 }
 
-const BASE_Y = 3.2
+/** 棋盤中央上方 */
+const CENTER_POS: [number, number, number] = [0, 3.05, 0]
+const DIE_GAP = 0.58
 
 export function Dice3D({ a, b, spinning }: Props) {
-  const ref = useRef<THREE.Group>(null)
-  const dieA = useRef<THREE.Group>(null)
-  const dieB = useRef<THREE.Group>(null)
+  const rootRef = useRef<THREE.Group>(null)
+  const dieARef = useRef<THREE.Group>(null)
+  const dieBRef = useRef<THREE.Group>(null)
   const lightRef = useRef<THREE.PointLight>(null)
-  const spinClock = useRef(0)
+  const tRef = useRef(0)
+
+  const [dieMaterials, setDieMaterials] = useState<THREE.MeshStandardMaterial[] | null>(null)
+
+  useEffect(() => {
+    const textures = buildDiceFaceTextures()
+    const mats = buildStandardDieMaterials(textures)
+    setDieMaterials(mats)
+    return () => disposeDieMaterials(mats)
+  }, [])
 
   const va = useMemo(() => clampPip(a), [a])
   const vb = useMemo(() => clampPip(b), [b])
 
   useFrame((_, dt) => {
-    if (!ref.current) return
+    const t = (tRef.current += dt)
+
+    if (!rootRef.current || !dieARef.current || !dieBRef.current) return
+
     if (spinning) {
-      spinClock.current += dt
-      const wobble = Math.sin(spinClock.current * 14) * 0.11 + Math.sin(spinClock.current * 23) * 0.05
-      ref.current.position.y = BASE_Y + wobble
-      const pulse = 1 + Math.sin(spinClock.current * 18) * 0.06
-      ref.current.scale.setScalar(pulse)
-      ref.current.rotation.x += dt * 9
-      ref.current.rotation.y += dt * 7.5
-      ref.current.rotation.z += dt * 5
-      if (dieA.current) {
-        dieA.current.rotation.x += dt * 12
-        dieA.current.rotation.y += dt * 10
-      }
-      if (dieB.current) {
-        dieB.current.rotation.x += dt * 11
-        dieB.current.rotation.y += dt * 9
-      }
+      const bob = Math.sin(t * 11) * 0.14 + Math.sin(t * 19) * 0.06
+      const sway = Math.sin(t * 7.5) * 0.06
+      rootRef.current.position.set(CENTER_POS[0] + sway, CENTER_POS[1] + bob, CENTER_POS[2] + Math.cos(t * 6.2) * 0.05)
+
+      dieARef.current.rotation.x += dt * (11 + Math.sin(t * 3) * 2)
+      dieARef.current.rotation.y += dt * (13 + Math.cos(t * 2.5) * 1.5)
+      dieARef.current.rotation.z += dt * (9 + Math.sin(t * 4) * 2)
+
+      dieBRef.current.rotation.x += dt * (10 + Math.cos(t * 3.2) * 2)
+      dieBRef.current.rotation.y += dt * (12 + Math.sin(t * 2.8) * 1.5)
+      dieBRef.current.rotation.z += dt * (10.5 + Math.cos(t * 3.5) * 2)
+
+      const orbit = 0.12
+      dieARef.current.position.x = -DIE_GAP * 0.5 + Math.sin(t * 8) * orbit
+      dieARef.current.position.z = Math.cos(t * 8) * orbit * 0.6
+      dieBRef.current.position.x = DIE_GAP * 0.5 + Math.sin(t * 8 + 1.7) * orbit
+      dieBRef.current.position.z = Math.cos(t * 8 + 1.7) * orbit * 0.6
+
       if (lightRef.current) {
-        lightRef.current.intensity = 1.4 + Math.sin(spinClock.current * 22) * 0.85
+        lightRef.current.intensity = 1.25 + Math.sin(t * 20) * 0.55
       }
     } else {
-      spinClock.current = 0
-      ref.current.position.y = THREE.MathUtils.lerp(ref.current.position.y, BASE_Y, 0.12)
-      ref.current.scale.x = THREE.MathUtils.lerp(ref.current.scale.x, 1, 0.1)
-      ref.current.scale.y = THREE.MathUtils.lerp(ref.current.scale.y, 1, 0.1)
-      ref.current.scale.z = THREE.MathUtils.lerp(ref.current.scale.z, 1, 0.1)
-      ref.current.rotation.x = THREE.MathUtils.lerp(ref.current.rotation.x, 0.25, 0.08)
-      ref.current.rotation.y = THREE.MathUtils.lerp(ref.current.rotation.y, 0.45, 0.08)
-      ref.current.rotation.z = THREE.MathUtils.lerp(ref.current.rotation.z, 0, 0.08)
-      if (dieA.current) {
-        dieA.current.rotation.x = THREE.MathUtils.lerp(dieA.current.rotation.x, 0, 0.12)
-        dieA.current.rotation.y = THREE.MathUtils.lerp(dieA.current.rotation.y, 0, 0.12)
-        dieA.current.rotation.z = THREE.MathUtils.lerp(dieA.current.rotation.z, 0, 0.12)
-      }
-      if (dieB.current) {
-        dieB.current.rotation.x = THREE.MathUtils.lerp(dieB.current.rotation.x, 0, 0.12)
-        dieB.current.rotation.y = THREE.MathUtils.lerp(dieB.current.rotation.y, 0, 0.12)
-        dieB.current.rotation.z = THREE.MathUtils.lerp(dieB.current.rotation.z, 0, 0.12)
-      }
+      rootRef.current.position.lerp(new THREE.Vector3(...CENTER_POS), 0.14)
+      dieARef.current.position.lerp(new THREE.Vector3(-DIE_GAP * 0.5, 0, 0), 0.18)
+      dieBRef.current.position.lerp(new THREE.Vector3(DIE_GAP * 0.5, 0, 0), 0.18)
+
+      dieARef.current.rotation.x = THREE.MathUtils.lerp(dieARef.current.rotation.x, 0, 0.14)
+      dieARef.current.rotation.y = THREE.MathUtils.lerp(dieARef.current.rotation.y, 0, 0.14)
+      dieARef.current.rotation.z = THREE.MathUtils.lerp(dieARef.current.rotation.z, 0, 0.14)
+      dieBRef.current.rotation.x = THREE.MathUtils.lerp(dieBRef.current.rotation.x, 0, 0.14)
+      dieBRef.current.rotation.y = THREE.MathUtils.lerp(dieBRef.current.rotation.y, 0, 0.14)
+      dieBRef.current.rotation.z = THREE.MathUtils.lerp(dieBRef.current.rotation.z, 0, 0.14)
+
       if (lightRef.current) {
-        lightRef.current.intensity = THREE.MathUtils.lerp(lightRef.current.intensity, 0, 0.15)
+        lightRef.current.intensity = THREE.MathUtils.lerp(lightRef.current.intensity, 0, 0.12)
       }
     }
   })
 
+  const fallback = (
+    <mesh castShadow>
+      <boxGeometry args={[0.78, 0.78, 0.78]} />
+      <meshStandardMaterial color="#faf6f0" roughness={0.5} metalness={0.02} />
+    </mesh>
+  )
+
   return (
-    <group ref={ref} position={[9, BASE_Y, -9]}>
+    <group ref={rootRef} position={CENTER_POS}>
       <pointLight
         ref={lightRef}
-        position={[0, 0.6, 0]}
-        color="#fef08a"
+        position={[0, 0.85, 0.2]}
+        color="#fefce8"
         intensity={0}
-        distance={9}
+        distance={8}
         decay={2}
       />
-      <group ref={dieA} position={[-0.55, 0, 0]}>
-        <SingleDie value={va} />
+      <group ref={dieARef} position={[-DIE_GAP * 0.5, 0, 0]}>
+        {dieMaterials ? <TexturedDie materials={dieMaterials} value={va} /> : fallback}
       </group>
-      <group ref={dieB} position={[0.55, 0, 0]}>
-        <SingleDie value={vb} />
+      <group ref={dieBRef} position={[DIE_GAP * 0.5, 0, 0]}>
+        {dieMaterials ? <TexturedDie materials={dieMaterials} value={vb} /> : fallback}
       </group>
     </group>
   )

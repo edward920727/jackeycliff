@@ -1,9 +1,21 @@
 import { BOARD } from './board'
 import type { BoardCellDef, GameState, PlayerState } from './types'
 import { BOARD_LEN, GO_BONUS, JAIL_POSITION, MONOPOLY_RENT_MULTIPLIER } from './types'
+import { PROPERTY_GROUPS, propertyGroupKeys } from './propertyGroups'
 
 function randDie() {
   return 1 + Math.floor(Math.random() * 6)
+}
+
+function clampDie(n: number): number {
+  if (!Number.isFinite(n)) return randDie()
+  const v = Math.round(n)
+  return Math.min(6, Math.max(1, v))
+}
+
+/** 供 UI 先擲骰再送入 reducer（全螢幕擲骰動畫用） */
+export function rollTwoDice(): [number, number] {
+  return [randDie(), randDie()]
 }
 
 /** 機會／命運效果（簡化版） */
@@ -24,6 +36,13 @@ function countRailroadsOwned(owners: (number | null)[], playerId: number): numbe
   }).length
 }
 
+function countUtilitiesOwned(owners: (number | null)[], playerId: number): number {
+  return owners.filter((o, i) => {
+    const c = BOARD[i]
+    return o === playerId && c.kind === 'utility'
+  }).length
+}
+
 function groupPropertyIndices(group: string): number[] {
   return BOARD.map((c, i) => (c.kind === 'property' && c.group === group ? i : -1)).filter(
     (i) => i >= 0
@@ -36,12 +55,31 @@ function ownsFullGroup(owners: (number | null)[], playerId: number, group: strin
   return idx.every((i) => owners[i] === playerId)
 }
 
+function computeFullSetOwners(owners: (number | null)[]): Record<string, number | null> {
+  const out: Record<string, number | null> = {}
+  for (const g of propertyGroupKeys()) {
+    const indices = PROPERTY_GROUPS[g].indices
+    if (indices.length === 0) {
+      out[g] = null
+      continue
+    }
+    const firstOwner = owners[indices[0]!] ?? null
+    if (firstOwner == null) {
+      out[g] = null
+      continue
+    }
+    const ok = indices.every((i) => owners[i] === firstOwner)
+    out[g] = ok ? firstOwner : null
+  }
+  return out
+}
+
 /** 該格為地產且地主已達成同色壟斷（該組全持有） */
 export function hasColorMonopoly(state: GameState, cellIndex: number): boolean {
   const cell = BOARD[cellIndex]
   const owner = state.owners[cellIndex]
   if (cell.kind !== 'property' || owner == null) return false
-  return ownsFullGroup(state.owners, owner, cell.group)
+  return state.fullSetOwners[cell.group] === owner
 }
 
 export function computeRent(cellIndex: number, state: GameState): number {
@@ -51,13 +89,21 @@ export function computeRent(cellIndex: number, state: GameState): number {
 
   if (cell.kind === 'railroad') {
     const n = countRailroadsOwned(state.owners, owner)
-    const tier = Math.min(Math.max(n, 1), 2) - 1
+    const tier = Math.min(Math.max(n, 1), 4) - 1
     return cell.rents[tier]
+  }
+
+  if (cell.kind === 'utility') {
+    const n = countUtilitiesOwned(state.owners, owner)
+    const diceSum = state.dice ? state.dice[0] + state.dice[1] : 7
+    if (n === 1) return 4 * diceSum
+    if (n >= 2) return 10 * diceSum
+    return 0
   }
 
   if (cell.kind === 'property') {
     let r = cell.baseRent
-    if (ownsFullGroup(state.owners, owner, cell.group)) {
+    if (state.fullSetOwners[cell.group] === owner) {
       r = Math.round(cell.baseRent * MONOPOLY_RENT_MULTIPLIER)
     }
     return r
@@ -99,12 +145,14 @@ function bankruptPlayer(state: GameState, playerId: number): GameState {
   for (let i = 0; i < owners.length; i++) {
     if (owners[i] === playerId) owners[i] = null
   }
+  const fullSetOwners = computeFullSetOwners(owners)
   const players = state.players.map((p) =>
     p.id === playerId ? { ...p, bankrupt: true, money: 0 } : p
   )
   let s: GameState = {
     ...state,
     owners,
+    fullSetOwners,
     players,
     lastMessage: `${state.players.find((x) => x.id === playerId)?.name ?? '玩家'} 破產出局！`,
   }
@@ -144,9 +192,11 @@ export function createInitialState(names: string[]): GameState {
     jailTurns: 0,
     bankrupt: false,
   }))
+  const owners = Array(BOARD_LEN).fill(null) as (number | null)[]
   return {
     players,
-    owners: Array(BOARD_LEN).fill(null) as (number | null)[],
+    owners,
+    fullSetOwners: computeFullSetOwners(owners),
     currentPlayer: 0,
     phase: 'roll',
     dice: null,
@@ -158,8 +208,9 @@ export function createInitialState(names: string[]): GameState {
 
 export type GameAction =
   | { type: 'NEW_GAME'; names: string[] }
-  | { type: 'ROLL' }
-  | { type: 'JAIL_PAY' }
+  /** 可帶 d1、d2（由 UI 預先擲出），省略則在 reducer 內隨機 */
+  | { type: 'ROLL'; d1?: number; d2?: number }
+  | { type: 'JAIL_PAY'; d1?: number; d2?: number }
   | { type: 'BUY' }
   | { type: 'SKIP_BUY' }
 
@@ -260,7 +311,7 @@ function resolveLanding(state: GameState, movedPlayer: PlayerState, passedGoMsg:
     }
   }
 
-  if (cell.kind === 'property' || cell.kind === 'railroad') {
+  if (cell.kind === 'property' || cell.kind === 'railroad' || cell.kind === 'utility') {
     const owner = state.owners[cellIndex]
     if (owner == null || owner === pid) {
       if (owner === pid) {
@@ -332,8 +383,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const cur = getCurrent(state)
       if (cur.bankrupt) return state
 
-      const d1 = randDie()
-      const d2 = randDie()
+      const d1 = action.d1 !== undefined ? clampDie(action.d1) : randDie()
+      const d2 = action.d2 !== undefined ? clampDie(action.d2) : randDie()
       const sum = d1 + d2
 
       if (cur.inJail) {
@@ -368,8 +419,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         return bankruptPlayer(state, cur.id)
       }
       const paid = { ...cur, money: cur.money - fee, inJail: false, jailTurns: 0 }
-      const d1 = randDie()
-      const d2 = randDie()
+      const d1 = action.d1 !== undefined ? clampDie(action.d1) : randDie()
+      const d2 = action.d2 !== undefined ? clampDie(action.d2) : randDie()
       const sum = d1 + d2
       const { player: moved, passedGo } = movePlayer(paid, sum, true)
       return resolveLanding({ ...state, dice: [d1, d2] }, moved, passedGo)
@@ -380,17 +431,20 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const cur = getCurrent(state)
       const idx = cur.position
       const cell = BOARD[idx]
-      if (cell.kind !== 'property' && cell.kind !== 'railroad') return state
+      if (cell.kind !== 'property' && cell.kind !== 'railroad' && cell.kind !== 'utility')
+        return state
       if (state.owners[idx] != null) return state
       if (cur.money < cell.price) return state
       const owners = [...state.owners]
       owners[idx] = cur.id
+      const fullSetOwners = computeFullSetOwners(owners)
       const players = state.players.map((p) =>
         p.id === cur.id ? { ...p, money: p.money - cell.price } : p
       )
       return {
         ...state,
         owners,
+        fullSetOwners,
         players,
         phase: 'roll',
         lastMessage: `購買「${cell.name}」成功！`,

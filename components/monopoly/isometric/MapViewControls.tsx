@@ -1,90 +1,63 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useThree } from '@react-three/fiber'
+import { useEffect, useRef } from 'react'
+import { useFrame, useThree } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
+import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
+import { INITIAL_ORBIT_CAMERA } from './boardCamera'
 
-const INITIAL_POS: [number, number, number] = [26, 26, 26]
-
-const TOUCH = { ROTATE: 0, PAN: 1, DOLLY_PAN: 2, DOLLY_ROTATE: 3 } as const
-const MOUSE = { ROTATE: 0, DOLLY: 1, PAN: 2 } as const
-
-export type MapTouchMode = 'rotate' | 'pan'
-
-declare global {
-  interface WindowEventMap {
-    'monopoly-touch-mode': CustomEvent<MapTouchMode>
-  }
-}
+/** 環顧中心高度（格心／棋子附近） */
+const TARGET_Y = INITIAL_ORBIT_CAMERA.targetY
 
 /**
- * 旋轉 + 平移 + 縮放（正交相機）
- * - 滑鼠：左鍵旋轉、右鍵平移、滾輪／中鍵縮放
- * - 粗指標：單指在「旋轉／平移」間切換（見棋盤上按鈕），避免雙指 dolly 崩潰
- * - 精細指標：預設觸控（含觸控板捏合）
+ * 第三人稱：軌道相機環繞當前回合玩家所在格；拖曳旋轉、滾輪縮放、右鍵／中鍵平移（依裝置）。
+ * 焦點與相機一併平滑平移，保留使用者調好的方位與距離。
  */
-export function MapViewControls() {
+type Props = {
+  focusWorld?: [number, number] | null
+}
+
+export function MapViewControls({ focusWorld = null }: Props) {
   const { camera } = useThree()
-  const [coarsePointer, setCoarsePointer] = useState(false)
-  const [touchMode, setTouchMode] = useState<MapTouchMode>('rotate')
+  const controlsRef = useRef<OrbitControlsImpl>(null)
 
   useEffect(() => {
-    const mq = window.matchMedia('(pointer: coarse)')
-    const sync = () => setCoarsePointer(mq.matches)
-    sync()
-    mq.addEventListener('change', sync)
-    return () => mq.removeEventListener('change', sync)
-  }, [])
-
-  useEffect(() => {
-    const onMode = (e: CustomEvent<MapTouchMode>) => {
-      if (e.detail === 'rotate' || e.detail === 'pan') setTouchMode(e.detail)
-    }
-    window.addEventListener('monopoly-touch-mode', onMode as EventListener)
-    return () => window.removeEventListener('monopoly-touch-mode', onMode as EventListener)
-  }, [])
-
-  useEffect(() => {
-    camera.position.set(...INITIAL_POS)
-    camera.lookAt(0, 0, 0)
-    if (camera instanceof THREE.OrthographicCamera) {
-      camera.zoom = 30
+    camera.near = 0.06
+    camera.far = 900
+    if (camera instanceof THREE.PerspectiveCamera) {
+      camera.fov = INITIAL_ORBIT_CAMERA.fov
       camera.updateProjectionMatrix()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [camera])
+
+  useFrame((_, delta) => {
+    const ctrl = controlsRef.current
+    if (!ctrl) return
+    const tx = focusWorld?.[0] ?? 0
+    const tz = focusWorld?.[1] ?? 0
+    const next = new THREE.Vector3(tx, TARGET_Y, tz)
+    const k = 1 - Math.exp(-delta * 3.2)
+    const before = ctrl.target.clone()
+    ctrl.target.lerp(next, k)
+    camera.position.add(ctrl.target.clone().sub(before))
+    ctrl.update()
+  })
 
   return (
     <OrbitControls
+      ref={controlsRef}
       makeDefault
-      target={[0, 0, 0]}
       enableDamping
-      dampingFactor={0.08}
-      enableRotate
-      enablePan
-      enableZoom
-      minZoom={12}
-      maxZoom={72}
+      dampingFactor={0.06}
+      minDistance={5.8}
+      maxDistance={50}
       minPolarAngle={0.28}
-      maxPolarAngle={1.42}
-      screenSpacePanning
-      rotateSpeed={0.55}
-      panSpeed={0.9}
-      zoomSpeed={0.85}
-      mouseButtons={{
-        LEFT: MOUSE.ROTATE,
-        MIDDLE: MOUSE.DOLLY,
-        RIGHT: MOUSE.PAN,
-      }}
-      {...(coarsePointer
-        ? {
-            touches: {
-              ONE: touchMode === 'rotate' ? TOUCH.ROTATE : TOUCH.PAN,
-              TWO: TOUCH.PAN,
-            },
-          }
-        : {})}
+      maxPolarAngle={Math.PI / 2 - 0.06}
+      rotateSpeed={0.65}
+      zoomSpeed={0.75}
+      panSpeed={0.65}
+      target={[0, TARGET_Y, 0]}
     />
   )
 }

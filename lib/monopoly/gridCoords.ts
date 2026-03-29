@@ -3,8 +3,8 @@ import { boardGrid } from './layout'
 
 /** 單格在世界座標上的間距（與 R3F 場景一致） */
 export const TILE_SPACING = 2.35
-const COLS = 6
-const ROWS = 8
+const COLS = 11
+const ROWS = 11
 
 /** 棋盤索引 -> 格心 (x, z)，y 由地形高度決定 */
 export function cellIndexToXZ(cellIndex: number): [number, number] | null {
@@ -31,6 +31,12 @@ export function pathCellIndices(from: number, to: number): number[] {
     out.push(i)
   }
   return out
+}
+
+/** 順時針沿路經過的格子序列：含起點、終點（相鄰不重複） */
+export function cellsAlongPath(from: number, to: number): number[] {
+  if (from === to) return [from]
+  return [from, ...pathCellIndices(from, to)]
 }
 
 /** 同一格多名玩家時的微小偏移，避免重疊 */

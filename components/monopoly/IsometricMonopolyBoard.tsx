@@ -2,15 +2,18 @@
 
 import type { Dispatch } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { Suspense, useEffect, useRef, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
+import * as THREE from 'three'
 import { motion, AnimatePresence } from 'framer-motion'
 import { BOARD } from '@/lib/monopoly/board'
 import type { GameAction } from '@/lib/monopoly/engine'
 import type { GameState } from '@/lib/monopoly/types'
 import { GO_BONUS, MONOPOLY_RENT_MULTIPLIER } from '@/lib/monopoly/types'
+import { mascotLabelForPlayerId, mascotLegendLine } from '@/lib/monopoly/mascots'
 import { GameButton } from './GameButton'
 import { MonopolyScene } from './isometric/MonopolyScene'
-import type { MapTouchMode } from './isometric/MapViewControls'
+import { INITIAL_ORBIT_CAMERA } from './isometric/boardCamera'
+import { useFullScreenDiceRoll } from './useFullScreenDiceRoll'
 
 const PLAYER_ACCENTS = ['#f472b6', '#60a5fa', '#4ade80', '#fbbf24']
 
@@ -47,152 +50,97 @@ export function IsometricMonopolyBoard({
   startGame,
 }: Props) {
   const [resetSeq, setResetSeq] = useState(0)
-  const [diceSpin, setDiceSpin] = useState(false)
-  const [diceFxSeq, setDiceFxSeq] = useState(0)
   const [setupOpen, setSetupOpen] = useState(false)
-  const [coarsePointer, setCoarsePointer] = useState(false)
-  const [mapTouchMode, setMapTouchMode] = useState<MapTouchMode>('rotate')
-  /** 僅在 dice 從 null → 有值時觸發（每次新擲骰），避免相同點數不重播 */
-  const hadDiceRef = useRef(!!state.dice)
+  /** 擲骰後鏡頭跟隨走棋玩家，點「結束」後改跟隨當前回合玩家 */
+  const [cameraFollowPlayerId, setCameraFollowPlayerId] = useState<number | null>(null)
+
+  const { begin: beginFullScreenDice, overlayNode: fullScreenDiceOverlay, sceneDiceSpinning, isRolling } =
+    useFullScreenDiceRoll(dispatch)
 
   useEffect(() => {
-    const mq = window.matchMedia('(pointer: coarse)')
-    const sync = () => setCoarsePointer(mq.matches)
-    sync()
-    mq.addEventListener('change', sync)
-    return () => mq.removeEventListener('change', sync)
-  }, [])
-
-  const emitMapTouchMode = (m: MapTouchMode) => {
-    setMapTouchMode(m)
-    window.dispatchEvent(new CustomEvent<MapTouchMode>('monopoly-touch-mode', { detail: m }))
-  }
+    setCameraFollowPlayerId(null)
+  }, [resetSeq])
 
   useEffect(() => {
-    if (state.dice) {
-      if (!hadDiceRef.current) {
-        hadDiceRef.current = true
-        setDiceFxSeq((n) => n + 1)
-        setDiceSpin(true)
-        const t = window.setTimeout(() => setDiceSpin(false), 1600)
-        return () => window.clearTimeout(t)
-      }
-    } else {
-      hadDiceRef.current = false
-    }
-  }, [state.dice])
+    if (state.phase === 'gameover') setCameraFollowPlayerId(null)
+  }, [state.phase])
 
   const onRestart = () => {
     startGame()
     setResetSeq((s) => s + 1)
   }
 
+  const lockCameraOnRoller = () => setCameraFollowPlayerId(state.currentPlayer)
+
   const current = state.players[state.currentPlayer]
 
   return (
-    <div className="relative z-0 h-full min-h-[220px] w-full min-w-0 overflow-hidden rounded-xl border-2 border-white/85 bg-gradient-to-b from-violet-200/50 to-violet-400/30 shadow-[0_20px_60px_rgba(109,40,217,0.25)] max-md:min-h-0 max-md:flex-1 sm:rounded-[1.5rem] md:min-h-[460px] md:rounded-[1.75rem]">
+    <div className="relative z-0 h-full min-h-[220px] w-full min-w-0 overflow-hidden rounded-xl border border-white/60 bg-[url('/monopoly/backgrounds/plane-window.jpg')] bg-cover bg-center shadow-[0_28px_90px_rgba(2,6,23,0.35),0_10px_30px_rgba(2,6,23,0.18)] max-md:min-h-0 max-md:flex-1 sm:rounded-[1.5rem] md:min-h-[460px] md:rounded-[1.75rem]">
+      <div className="pointer-events-none absolute inset-0 z-[1] bg-white/30 backdrop-blur-[2px]" aria-hidden />
       {/*
         Canvas 預設會吃掉全區點擊；改為 pointer-events-none 讓底部按鈕／設定可點。
         若之後要在場景內互動，再在子元件用 pointer-events-auto。
       */}
       <Canvas
-        orthographic
         shadows
         dpr={[1, 1.5]}
         gl={{ antialias: true, alpha: true }}
         camera={{
-          position: [26, 26, 26],
-          zoom: 30,
-          near: 0.1,
-          far: 600,
+          fov: INITIAL_ORBIT_CAMERA.fov,
+          near: 0.06,
+          far: 900,
+          position: [...INITIAL_ORBIT_CAMERA.position],
         }}
-        onCreated={({ gl }) => {
-          gl.setClearColor('#bfe3ff', 1)
+        onCreated={({ gl, camera }) => {
+          gl.setClearColor('#000000', 0)
+          if (camera instanceof THREE.PerspectiveCamera) {
+            const el = gl.domElement
+            camera.aspect = el.clientWidth / Math.max(1, el.clientHeight)
+            camera.updateProjectionMatrix()
+          }
         }}
-        className="pointer-events-auto absolute inset-0 z-0 h-full w-full cursor-grab touch-none active:cursor-grabbing"
+        className="pointer-events-auto absolute inset-0 z-[2] h-full w-full cursor-grab touch-none active:cursor-grabbing"
       >
         <Suspense fallback={null}>
-          <MonopolyScene state={state} resetSeq={resetSeq} diceSpinning={diceSpin} />
+          <MonopolyScene
+            state={state}
+            resetSeq={resetSeq}
+            diceSpinning={sceneDiceSpinning}
+            cameraFollowPlayerId={cameraFollowPlayerId}
+          />
         </Suspense>
       </Canvas>
 
+      {fullScreenDiceOverlay}
+
       <AnimatePresence>
-        {diceSpin && (
-          <motion.div
-            key={diceFxSeq}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.35 }}
-            className="pointer-events-none absolute inset-0 z-[25] overflow-hidden rounded-[inherit]"
+        {cameraFollowPlayerId != null && state.phase !== 'gameover' && (
+          <div
+            key="camera-follow-done"
+            className="pointer-events-auto absolute bottom-[9.25rem] left-0 right-0 z-[52] flex justify-center px-3 sm:bottom-[9.75rem] md:bottom-[12.5rem]"
           >
             <motion.div
-              className="absolute inset-0 bg-gradient-to-t from-amber-300/35 via-fuchsia-400/12 to-violet-400/25"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: [0, 0.85, 0.35, 0] }}
-              transition={{ duration: 1.55, times: [0, 0.12, 0.45, 1], ease: 'easeOut' }}
-            />
-            <motion.div
-              className="absolute left-1/2 top-[38%] h-[min(55%,420px)] w-[min(85%,520px)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-amber-200/30 blur-3xl"
-              initial={{ scale: 0.4, opacity: 0 }}
-              animate={{ scale: [0.4, 1.15, 1], opacity: [0, 0.9, 0] }}
-              transition={{ duration: 1.45, times: [0, 0.2, 1], ease: 'easeOut' }}
-            />
-            {[...Array(14)].map((_, i) => (
-              <motion.span
-                key={i}
-                className="absolute text-lg leading-none text-amber-200 drop-shadow-md"
-                style={{
-                  left: `${8 + ((i * 17) % 84)}%`,
-                  top: `${12 + ((i * 23) % 70)}%`,
-                }}
-                initial={{ opacity: 0, scale: 0, y: 12 }}
-                animate={{
-                  opacity: [0, 1, 0],
-                  scale: [0.2, 1.1, 0.6],
-                  y: [18, -28 - (i % 5) * 8, -52 - (i % 3) * 12],
-                  rotate: [0, (i % 2 ? 1 : -1) * 25],
-                }}
-                transition={{
-                  duration: 1.35,
-                  delay: i * 0.035,
-                  ease: 'easeOut',
-                }}
+              initial={{ opacity: 0, y: 10, scale: 0.94 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 6, scale: 0.96 }}
+              transition={{ type: 'spring', stiffness: 420, damping: 28 }}
+              className="flex justify-center"
+            >
+              <GameButton
+                type="button"
+                variant="secondary"
+                onClick={() => setCameraFollowPlayerId(null)}
+                className="!inline-flex !w-auto min-w-[5.75rem] flex-row items-center justify-center gap-1.5 rounded-xl px-4 py-2 text-xs !shadow-[0_6px_0_#c4b5fd,0_8px_20px_rgba(109,40,217,0.16)] ring-2 ring-amber-300/70 ring-offset-1 ring-offset-violet-100/90 sm:min-w-[7rem] sm:gap-2 sm:rounded-2xl sm:px-6 sm:py-2.5 sm:text-sm sm:!shadow-[0_8px_0_#c4b5fd,0_10px_28px_rgba(109,40,217,0.18)] sm:ring-offset-2 md:min-w-[7.75rem] md:rounded-[1.125rem] md:py-3 md:text-base"
               >
-                ✦
-              </motion.span>
-            ))}
-          </motion.div>
+                <span className="text-[1.1em] leading-none drop-shadow-sm" aria-hidden>
+                  ◎
+                </span>
+                結束
+              </GameButton>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
-
-      {coarsePointer && (
-        <div className="pointer-events-auto absolute right-2 top-[3.75rem] z-[45] flex gap-0.5 rounded-xl border-2 border-white/85 bg-white/95 p-0.5 shadow-lg sm:top-16">
-          <button
-            type="button"
-            onClick={() => emitMapTouchMode('rotate')}
-            className={`rounded-lg px-2 py-1 text-[10px] font-extrabold transition-colors ${
-              mapTouchMode === 'rotate' ? 'bg-violet-600 text-white shadow-inner' : 'text-violet-700 hover:bg-violet-50'
-            }`}
-          >
-            旋轉
-          </button>
-          <button
-            type="button"
-            onClick={() => emitMapTouchMode('pan')}
-            className={`rounded-lg px-2 py-1 text-[10px] font-extrabold transition-colors ${
-              mapTouchMode === 'pan' ? 'bg-violet-600 text-white shadow-inner' : 'text-violet-700 hover:bg-violet-50'
-            }`}
-          >
-            平移
-          </button>
-        </div>
-      )}
-
-      <p className="pointer-events-none absolute bottom-[7.25rem] left-1/2 z-[35] max-w-[min(100%,20rem)] -translate-x-1/2 px-1 text-center text-[9px] leading-snug text-slate-600/90 drop-shadow-sm sm:bottom-[7.5rem] md:bottom-32 md:text-[10px]">
-        左鍵旋轉 · 右鍵平移 · 滾輪縮放
-        <span className="max-md:block md:inline">｜手機先選「旋轉／平移」再單指拖曳</span>
-      </p>
 
       {/* 手機：橫向玩家列（避免四角大卡片擠滿畫面） */}
       <div
@@ -226,6 +174,9 @@ export function IsometricMonopolyBoard({
                 </div>
                 <p className="w-full max-w-full truncate px-0.5 text-[8px] font-extrabold leading-tight text-slate-800 sm:text-[9px]">
                   {names[i] || `玩家${i + 1}`}
+                </p>
+                <p className="w-full max-w-full truncate text-[7px] font-bold leading-tight text-violet-600 sm:text-[8px]">
+                  棋子：{mascotLabelForPlayerId(p.id)}
                 </p>
                 <p className="max-w-full truncate font-mono text-[9px] font-bold tabular-nums leading-none text-violet-700">
                   ${p.money}
@@ -279,6 +230,7 @@ export function IsometricMonopolyBoard({
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-xs font-extrabold text-slate-800">{names[i] || `玩家${i + 1}`}</p>
+                  <p className="truncate text-[10px] font-semibold text-violet-600">棋子：{mascotLabelForPlayerId(p.id)}</p>
                   <p className="font-mono text-sm font-bold text-violet-700">${p.money}</p>
                   <div className="mt-1 h-2 overflow-hidden rounded-full bg-violet-100">
                     <div
@@ -325,7 +277,7 @@ export function IsometricMonopolyBoard({
                 key="actions"
                 initial={{ y: 12, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
-                className="space-y-1.5 rounded-xl border-2 border-white/80 bg-white/90 p-2 shadow-2xl backdrop-blur-md sm:space-y-2 sm:rounded-2xl sm:p-3"
+                className="space-y-1 rounded-xl border-2 border-white/80 bg-white/90 p-1.5 shadow-2xl backdrop-blur-md sm:space-y-2 sm:p-2 md:rounded-2xl md:p-3"
               >
                 {state.phase === 'roll' && (
                   <>
@@ -334,17 +286,36 @@ export function IsometricMonopolyBoard({
                         <GameButton
                           type="button"
                           variant="orange"
-                          disabled={current.money < 50}
-                          onClick={() => dispatch({ type: 'JAIL_PAY' })}
+                          disabled={current.money < 50 || isRolling}
+                          onClick={() => {
+                            lockCameraOnRoller()
+                            beginFullScreenDice('jail_pay', current.name)
+                          }}
                         >
                           付 $50 出獄並擲骰
                         </GameButton>
-                        <GameButton type="button" variant="primary" onClick={() => dispatch({ type: 'ROLL' })}>
+                        <GameButton
+                          type="button"
+                          variant="primary"
+                          disabled={isRolling}
+                          onClick={() => {
+                            lockCameraOnRoller()
+                            beginFullScreenDice('roll', current.name)
+                          }}
+                        >
                           擲骰（雙數出獄）
                         </GameButton>
                       </>
                     ) : (
-                      <GameButton type="button" variant="primary" onClick={() => dispatch({ type: 'ROLL' })}>
+                      <GameButton
+                        type="button"
+                        variant="primary"
+                        disabled={isRolling}
+                        onClick={() => {
+                          lockCameraOnRoller()
+                          beginFullScreenDice('roll', current.name)
+                        }}
+                      >
                         🎲 擲骰
                       </GameButton>
                     )}
@@ -386,7 +357,7 @@ export function IsometricMonopolyBoard({
         <button
           type="button"
           onClick={() => setSetupOpen((o) => !o)}
-          className="rounded-xl border-2 border-white/80 bg-white/90 px-3 py-1.5 text-xs font-extrabold text-violet-700 shadow-lg backdrop-blur-md hover:bg-white sm:rounded-2xl sm:px-4 sm:py-2 sm:text-sm"
+          className="rounded-lg border-2 border-white/80 bg-white/90 px-2.5 py-1 text-[11px] font-extrabold text-violet-700 shadow-lg backdrop-blur-md hover:bg-white sm:rounded-xl sm:px-3 sm:py-1.5 sm:text-xs md:rounded-2xl md:px-4 md:py-2 md:text-sm"
         >
           ⚙ 開局設定
         </button>
@@ -418,14 +389,15 @@ export function IsometricMonopolyBoard({
                     setNames(next)
                   }}
                   className="mb-1.5 w-full rounded-xl border border-violet-100 bg-white px-2 py-1 text-sm"
-                  placeholder={`玩家 ${i + 1}`}
+                  placeholder={`玩家 ${i + 1}（${mascotLabelForPlayerId(i)}）`}
                 />
               ))}
+              <p className="mb-1 text-[9px] leading-snug text-violet-600/95">棋子對應：{mascotLegendLine(playerCount)}</p>
               <GameButton type="button" variant="secondary" onClick={onRestart} className="mt-1">
                 重新開始
               </GameButton>
               <p className="mt-2 text-[9px] leading-relaxed text-slate-500">
-                規則：經過起點 +{GO_BONUS}；同色一組買齊租金×{MONOPOLY_RENT_MULTIPLIER}；破產資產充公。
+                規則：40 格；經過起點 +{GO_BONUS}；同色一組買齊租金×{MONOPOLY_RENT_MULTIPLIER}；鐵路／公共事業依持有數計租；破產資產充公。
               </p>
             </motion.div>
           )}

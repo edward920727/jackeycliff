@@ -1,31 +1,28 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { useFrame, useThree } from '@react-three/fiber'
-import * as THREE from 'three'
+import { Suspense, useMemo } from 'react'
 import { BOARD } from '@/lib/monopoly/board'
-import { computeRent } from '@/lib/monopoly/engine'
+import { computeRent, hasColorMonopoly } from '@/lib/monopoly/engine'
 import type { GameState } from '@/lib/monopoly/types'
 import { cellIndexToXZ } from '@/lib/monopoly/gridCoords'
-import { Html } from '@react-three/drei'
+import { Environment, Html } from '@react-three/drei'
 import { TileCube } from './TileCube'
 import { TokenPawn } from './TokenPawn'
 import { Dice3D } from './Dice3D'
 import { BoardEnvironment } from './BoardEnvironment'
 import { MapViewControls } from './MapViewControls'
 import { playerColor } from '@/lib/monopoly/playerColors'
+import { useOrthoHtmlDistanceFactor } from './useOrthoHtmlDistanceFactor'
+import { useMonopolyBoardTextures } from './useMonopolyBoardTextures'
 
 type Props = {
   state: GameState
   resetSeq: number
   diceSpinning: boolean
+  /** 有值時鏡頭跟隨該玩家格（走棋），null 時跟隨 state.currentPlayer */
+  cameraFollowPlayerId: number | null
 }
 
-/**
- * drei Html 在正交相機下會用 camera.zoom 當縮放係數；若仍用透視常用的 distanceFactor（如 11），
- * 實際 scale = zoom × distanceFactor（例如 30×11）會把氣泡放大成整片白屏。
- * 正交時改為 distanceFactor ≈ 1/zoom，使與畫面比例一致。
- */
 function BuyPromptBubble({
   position,
   children,
@@ -33,21 +30,7 @@ function BuyPromptBubble({
   position: [number, number, number]
   children: React.ReactNode
 }) {
-  const { camera } = useThree()
-  const [zoom, setZoom] = useState(30)
-  useFrame(() => {
-    if (camera instanceof THREE.OrthographicCamera) {
-      const z = camera.zoom
-      setZoom((prev) => (Math.abs(prev - z) > 0.04 ? z : prev))
-    }
-  })
-  const distanceFactor = useMemo(() => {
-    if (camera instanceof THREE.OrthographicCamera) {
-      return 1 / zoom
-    }
-    return 11
-  }, [camera, zoom])
-
+  const distanceFactor = useOrthoHtmlDistanceFactor()
   return (
     <Html position={position} center distanceFactor={distanceFactor}>
       {children}
@@ -55,38 +38,68 @@ function BuyPromptBubble({
   )
 }
 
-export function MonopolyScene({ state, resetSeq, diceSpinning }: Props) {
+function MonopolySceneContent({ state, resetSeq, diceSpinning, cameraFollowPlayerId }: Props) {
+  const { woodDiff, woodNor, woodRough, grassDiff, grassNor } = useMonopolyBoardTextures()
+  const boardTex = useMemo(
+    () => ({ woodDiff, woodNor, woodRough }),
+    [woodDiff, woodNor, woodRough]
+  )
+  const grass = useMemo(() => ({ map: grassDiff, normalMap: grassNor }), [grassDiff, grassNor])
+
+  const focusPlayerIndex = (() => {
+    if (state.phase === 'gameover') return state.currentPlayer
+    if (
+      cameraFollowPlayerId != null &&
+      state.players[cameraFollowPlayerId] &&
+      !state.players[cameraFollowPlayerId].bankrupt
+    ) {
+      return cameraFollowPlayerId
+    }
+    return state.currentPlayer
+  })()
+  const focusPlayer = state.players[focusPlayerIndex]
+  const focusWorld: [number, number] = (() => {
+    if (state.phase === 'gameover') return [0, 0]
+    if (!focusPlayer || focusPlayer.bankrupt) return [0, 0]
+    const xz = cellIndexToXZ(focusPlayer.position)
+    return xz ? [xz[0], xz[1]] : [0, 0]
+  })()
+
   return (
     <>
-      <MapViewControls />
-      <color attach="background" args={['#bfe3ff']} />
-      <ambientLight intensity={0.78} />
-      <hemisphereLight args={['#e0f2fe', '#4a7c59', 0.45]} />
+      <MapViewControls focusWorld={focusWorld} />
+      <Environment preset="city" environmentIntensity={0.55} />
+      <ambientLight intensity={0.72} />
+      <hemisphereLight args={['#e8f4fc', '#5a8f5e', 0.5]} />
       <directionalLight position={[14, 28, 12]} intensity={1.05} castShadow shadow-mapSize-width={2048} shadow-mapSize-height={2048} />
-      <directionalLight position={[-10, 16, -8]} intensity={0.38} color="#fef9c3" />
+      <directionalLight position={[-10, 16, -8]} intensity={0.42} color="#fef9c3" />
 
-      <BoardEnvironment />
+      <BoardEnvironment grass={grass} />
 
       {BOARD.map((cell, i) => {
         const pos = cellIndexToXZ(i)
         if (!pos) return null
         const [x, z] = pos
         const owner = state.owners[i]
-        const canBuild = owner != null && (cell.kind === 'property' || cell.kind === 'railroad')
+        const canBuild =
+          owner != null && (cell.kind === 'property' || cell.kind === 'railroad' || cell.kind === 'utility')
         const rent = canBuild ? computeRent(i, state) : 0
         const bh = canBuild ? Math.min(0.35 + rent / 95, 1.35) : 0
-        const ownerMark =
-          owner != null && (cell.kind === 'property' || cell.kind === 'railroad')
-            ? playerColor(owner)
+        const ownerPlayerId =
+          owner != null && (cell.kind === 'property' || cell.kind === 'railroad' || cell.kind === 'utility')
+            ? owner
             : null
+        const isFullSet = cell.kind === 'property' ? hasColorMonopoly(state, i) : false
         return (
           <group key={i} position={[x, 0, z]}>
             <TileCube
               cell={cell}
               showBuilding={canBuild}
               buildingHeight={bh}
-              ownerColor={ownerMark}
+              ownerPlayerId={ownerPlayerId}
+              isFullSet={isFullSet}
               worldXZ={[x, z]}
+              boardTex={boardTex}
             />
           </group>
         )
@@ -105,6 +118,7 @@ export function MonopolyScene({ state, resetSeq, diceSpinning }: Props) {
               key={`${p.id}-${resetSeq}`}
               cellIndex={p.position}
               color={playerColor(p.id)}
+              playerId={p.id}
               slot={slot}
               totalOnCell={totalOnCell}
             />
@@ -124,16 +138,26 @@ export function MonopolyScene({ state, resetSeq, diceSpinning }: Props) {
           const cell = BOARD[cur.position]
           return (
             <BuyPromptBubble position={[xz[0], 2.5, xz[1]]}>
-              <div className="max-w-[200px] rounded-2xl border-2 border-white/70 bg-white/85 px-4 py-2.5 text-center shadow-2xl backdrop-blur-md">
-                <p className="text-xs font-bold uppercase tracking-wider text-violet-500">購買中</p>
-                <p className="mt-1 text-sm font-extrabold text-slate-800">{cell.name}</p>
-                <p className="mt-0.5 text-xs font-semibold text-violet-600">
-                  {(cell.kind === 'property' || cell.kind === 'railroad') && <>${cell.price}</>}
+              <div className="max-w-[240px] rounded-2xl border-2 border-white/70 bg-white/85 px-5 py-3 text-center shadow-2xl backdrop-blur-md">
+                <p className="text-sm font-bold uppercase tracking-wider text-violet-500">購買中</p>
+                <p className="mt-1 text-base font-extrabold text-slate-800">{cell.name}</p>
+                <p className="mt-1 text-sm font-semibold text-violet-600">
+                  {(cell.kind === 'property' || cell.kind === 'railroad' || cell.kind === 'utility') && (
+                    <>${cell.price}</>
+                  )}
                 </p>
               </div>
             </BuyPromptBubble>
           )
         })()}
     </>
+  )
+}
+
+export function MonopolyScene(props: Props) {
+  return (
+    <Suspense fallback={null}>
+      <MonopolySceneContent {...props} />
+    </Suspense>
   )
 }

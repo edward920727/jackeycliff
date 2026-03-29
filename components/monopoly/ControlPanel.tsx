@@ -154,7 +154,10 @@ export function ControlPanel({
           )}
           {state.phase === 'buy_prompt' && (() => {
             const cell = BOARD[current.position]
-            const price = cell.kind === 'property' || cell.kind === 'railroad' ? cell.price : 0
+            const price =
+              cell.kind === 'property' || cell.kind === 'railroad' || cell.kind === 'utility'
+                ? cell.price
+                : 0
             return (
               <>
                 <p className="mb-1 text-xs font-medium tracking-wide text-slate-600">
@@ -178,7 +181,7 @@ export function ControlPanel({
       )}
 
       <p className="px-2 text-[10px] font-medium leading-relaxed tracking-wide text-white/75">
-        規則摘要：經過起點領 {GO_BONUS}；同色一組買齊租金×{MONOPOLY_RENT_MULTIPLIER}；兩條鐵路租金較高；停在他人資產須付租；破產者資產充公。
+        規則摘要：經過起點領 {GO_BONUS}；同色一組買齊租金×{MONOPOLY_RENT_MULTIPLIER}；四條鐵路租金遞增；兩家公共事業依骰子點數收租；停在他人資產須付租；破產者資產充公。
       </p>
     </aside>
   )

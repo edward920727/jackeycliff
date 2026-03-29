@@ -35,7 +35,7 @@ export const GameButton = forwardRef<HTMLButtonElement, GameButtonProps>(functio
       whileTap={disabled ? undefined : { scale: 0.96, y: 2 }}
       transition={{ type: 'spring', stiffness: 500, damping: 28 }}
       className={[
-        'w-full rounded-xl px-3 py-2.5 text-xs font-extrabold tracking-wide sm:rounded-2xl sm:py-3 sm:text-sm',
+        'w-full rounded-lg px-2.5 py-1.5 text-[11px] font-extrabold leading-snug tracking-wide sm:rounded-xl sm:px-3 sm:py-2.5 sm:text-xs md:rounded-2xl md:py-3 md:text-sm',
         'active:shadow-[inset_0_5px_14px_rgba(0,0,0,0.22)] disabled:pointer-events-none disabled:opacity-45',
         variantClass[variant],
         className,

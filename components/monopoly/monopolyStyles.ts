@@ -20,12 +20,18 @@ export function cellSurfaceClass(cell: BoardCellDef): string {
         `${base} bg-gradient-to-br from-rose-700/75 via-rose-800/82 to-rose-950 border-b-rose-950/90 border-rose-800/35`,
       yellow:
         `${base} bg-gradient-to-br from-amber-600/72 via-yellow-800/80 to-yellow-950 border-b-yellow-950/90 border-yellow-800/35`,
+      green:
+        `${base} bg-gradient-to-br from-emerald-700/78 via-emerald-800/85 to-emerald-950 border-b-emerald-950/90 border-emerald-800/35`,
+      dark_blue:
+        `${base} bg-gradient-to-br from-blue-800/80 via-blue-900/88 to-blue-950 border-b-blue-950/90 border-blue-800/40`,
     }
     return byGroup[g] ?? `${base} bg-gradient-to-br from-zinc-700 to-zinc-900 border-b-zinc-950`
   }
 
   if (cell.kind === 'railroad')
     return `${base} bg-gradient-to-br from-slate-600/85 via-slate-700/90 to-slate-900 border-b-slate-950/90 border-slate-600/30`
+  if (cell.kind === 'utility')
+    return `${base} bg-gradient-to-br from-sky-600/80 via-sky-800/88 to-sky-950 border-b-sky-950/90 border-sky-700/35`
   if (cell.kind === 'tax')
     return `${base} bg-gradient-to-br from-red-900/80 via-red-950/90 to-stone-950 border-b-red-950/90 border-red-900/40`
   if (cell.kind === 'chance')
