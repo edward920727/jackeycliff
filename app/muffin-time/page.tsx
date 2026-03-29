@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { subscribeToRecentMuffinRooms, type MuffinRoomSummary } from '@/lib/muffin-time/firestore'
 
 function getOrCreateClientId(): string {
   if (typeof window === 'undefined') return ''
@@ -18,10 +19,18 @@ export default function MuffinTimeLobby() {
   const [name, setName] = useState('')
   const [roomIdInput, setRoomIdInput] = useState('')
   const [clientId, setClientId] = useState('')
+  const [rooms, setRooms] = useState<MuffinRoomSummary[]>([])
 
   useEffect(() => {
     setClientId(getOrCreateClientId())
   }, [])
+
+  useEffect(() => {
+    const unsub = subscribeToRecentMuffinRooms((data) => setRooms(data), { limit: 30 })
+    return () => unsub()
+  }, [])
+
+  const lobbyRooms = useMemo(() => rooms.filter((r) => r.status === 'lobby'), [rooms])
 
   const handleCreateRoom = () => {
     if (!name.trim()) {
@@ -127,6 +136,62 @@ export default function MuffinTimeLobby() {
                 加入房間
               </button>
             </div>
+          </div>
+
+          <div className="mt-6 rounded-2xl border border-amber-800/50 bg-black/25 p-4">
+            <div className="flex items-baseline justify-between gap-2">
+              <h2 className="text-sm font-bold text-amber-100">公開房間列表</h2>
+              <div className="text-[10px] text-amber-300/70">點一下直接加入（僅顯示等待室）</div>
+            </div>
+
+            {lobbyRooms.length === 0 ? (
+              <div className="mt-3 rounded-xl border border-white/10 bg-black/25 px-3 py-3 text-xs text-amber-200/70">
+                目前沒有可加入的房間。
+              </div>
+            ) : (
+              <div className="mt-3 grid grid-cols-1 gap-2">
+                {lobbyRooms.slice(0, 12).map((r) => {
+                  const count = r.participants?.length ?? 0
+                  const canJoin = count < 8
+                  return (
+                    <button
+                      key={r.room_id}
+                      type="button"
+                      onClick={() => {
+                        if (!name.trim()) {
+                          alert('請先輸入你的名字')
+                          return
+                        }
+                        if (!canJoin) {
+                          alert('房間已滿（最多 8 人）')
+                          return
+                        }
+                        const params = new URLSearchParams({
+                          role: 'player',
+                          name: name.trim(),
+                          pid: clientId,
+                        })
+                        router.push(`/muffin-time/${r.room_id}?${params.toString()}`)
+                      }}
+                      className="flex items-center justify-between gap-3 rounded-xl border border-amber-800/50 bg-amber-950/70 px-3 py-2 text-left hover:bg-amber-900/70 transition-colors"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-sm text-amber-100">{r.room_id}</span>
+                          <span className="rounded-full border border-amber-700/60 bg-black/30 px-2 py-0.5 text-[10px] text-amber-200/90 tabular-nums">
+                            {count}/8
+                          </span>
+                        </div>
+                        <div className="mt-0.5 text-[10px] text-amber-200/70">等待室</div>
+                      </div>
+                      <div className="shrink-0 rounded-lg bg-amber-700/30 px-2.5 py-1 text-[10px] font-semibold text-amber-100">
+                        加入
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
           </div>
         </div>
       </div>

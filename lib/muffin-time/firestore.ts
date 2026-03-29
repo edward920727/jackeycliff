@@ -1,9 +1,13 @@
 import {
+  collection,
   doc,
   getDoc,
   setDoc,
   updateDoc,
   onSnapshot,
+  query,
+  orderBy,
+  limit,
   type DocumentSnapshot,
   type Unsubscribe,
 } from 'firebase/firestore'
@@ -27,6 +31,8 @@ const COLLECTION_NAME = 'muffin_time_games'
 function cloneGame(game: MuffinTimeGameData): MuffinTimeGameData {
   return JSON.parse(JSON.stringify(game)) as MuffinTimeGameData
 }
+
+export type MuffinRoomSummary = Pick<MuffinTimeGameData, 'room_id' | 'status' | 'participants' | 'host_participant_id' | 'updated_at'>
 
 export async function getMuffinGame(roomId: string): Promise<MuffinTimeGameData | null> {
   const gameRef = doc(db, COLLECTION_NAME, roomId)
@@ -264,6 +270,37 @@ export function subscribeToMuffinGame(
     (error) => {
       console.error('subscribeToMuffinGame', error)
       callback(null)
+    }
+  )
+}
+
+/**
+ * 最近房間列表（用 updated_at 排序），前端可自行過濾可加入條件（例如 status=lobby）。
+ * 這裡刻意不加 where，以降低 Firestore composite index 需求。
+ */
+export function subscribeToRecentMuffinRooms(
+  callback: (rooms: MuffinRoomSummary[]) => void,
+  opts?: { limit?: number }
+): Unsubscribe {
+  const q = query(collection(db, COLLECTION_NAME), orderBy('updated_at', 'desc'), limit(opts?.limit ?? 30))
+  return onSnapshot(
+    q,
+    (snap) => {
+      const rooms = snap.docs
+        .map((d) => d.data() as MuffinTimeGameData)
+        .filter((r) => !!r?.room_id)
+        .map((r) => ({
+          room_id: r.room_id,
+          status: r.status,
+          participants: r.participants || [],
+          host_participant_id: r.host_participant_id,
+          updated_at: r.updated_at,
+        }))
+      callback(rooms)
+    },
+    (error) => {
+      console.error('subscribeToRecentMuffinRooms', error)
+      callback([])
     }
   )
 }

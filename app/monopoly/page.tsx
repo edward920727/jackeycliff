@@ -1,5 +1,5 @@
-import MonopolyGame from '@/components/monopoly/MonopolyGame'
+import MonopolyLobby from '@/components/monopoly/MonopolyLobby'
 
 export default function MonopolyPage() {
-  return <MonopolyGame />
+  return <MonopolyLobby />
 }

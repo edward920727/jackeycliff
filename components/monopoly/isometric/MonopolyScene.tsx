@@ -2,7 +2,7 @@
 
 import { Suspense, useMemo } from 'react'
 import { BOARD } from '@/lib/monopoly/board'
-import { computeRent, hasColorMonopoly } from '@/lib/monopoly/engine'
+import { hasColorMonopoly } from '@/lib/monopoly/engine'
 import type { GameState } from '@/lib/monopoly/types'
 import { cellIndexToXZ } from '@/lib/monopoly/gridCoords'
 import { Environment, Html } from '@react-three/drei'
@@ -127,10 +127,7 @@ function MonopolySceneContent({ state, resetSeq, diceSpinning, cameraFollowPlaye
         if (!pos) return null
         const [x, z] = pos
         const owner = state.owners[i]
-        const canBuild =
-          owner != null && (cell.kind === 'property' || cell.kind === 'railroad' || cell.kind === 'utility')
-        const rent = canBuild ? computeRent(i, state) : 0
-        const bh = canBuild ? Math.min(0.35 + rent / 95, 1.35) : 0
+        const buildingLevel = cell.kind === 'property' ? state.buildings[i] ?? 0 : 0
         const ownerPlayerId =
           owner != null && (cell.kind === 'property' || cell.kind === 'railroad' || cell.kind === 'utility')
             ? owner
@@ -140,8 +137,7 @@ function MonopolySceneContent({ state, resetSeq, diceSpinning, cameraFollowPlaye
           <group key={i} position={[x, 0, z]}>
             <TileCube
               cell={cell}
-              showBuilding={canBuild}
-              buildingHeight={bh}
+              buildingLevel={buildingLevel}
               ownerPlayerId={ownerPlayerId}
               isFullSet={isFullSet}
               worldXZ={[x, z]}

@@ -1,7 +1,10 @@
-import type { BoardCellDef } from './types'
+import type { BoardCellDef, PropertyCell } from './types'
+import { PROPERTY_HOUSE_RENTS } from './propertyHouseRents'
 
-type WithoutColorGroup<T> = T extends any ? Omit<T, 'colorGroup'> : never
-type RawBoardCellDef = WithoutColorGroup<BoardCellDef>
+type WithoutColorGroup<T> = T extends unknown ? Omit<T, 'colorGroup'> : never
+/** 棋盤原始定義：地產不含 colorGroup／houseRents（由 withColorGroup 補上） */
+type RawPropertyCell = Omit<PropertyCell, 'colorGroup' | 'houseRents'>
+type RawBoardCellDef = RawPropertyCell | WithoutColorGroup<Exclude<BoardCellDef, PropertyCell>>
 
 /**
  * 40 格順時針（經典大富翁規模）；0 為起點（左下）。
@@ -240,7 +243,11 @@ const RAW_BOARD: RawBoardCellDef[] = [
 ]
 
 function withColorGroup(cell: RawBoardCellDef): BoardCellDef {
-  if (cell.kind === 'property') return { ...cell, colorGroup: cell.group }
+  if (cell.kind === 'property') {
+    const hr = PROPERTY_HOUSE_RENTS[cell.id]
+    if (!hr) throw new Error(`propertyHouseRents missing for ${cell.id}`)
+    return { ...cell, colorGroup: cell.group, houseRents: hr }
+  }
   return { ...cell, colorGroup: cell.kind }
 }
 

@@ -7,7 +7,7 @@ import { cellStripColor, inwardEdgeFromBoardPosition, type InwardEdge } from './
 import { TileLandmark } from './TileLandmark'
 import { TileFaceLabel } from './TileFaceLabel'
 import { RoundedBox } from '@react-three/drei'
-import { ownershipRingColors, playerColor } from '@/lib/monopoly/playerColors'
+import { ownershipRingColors } from '@/lib/monopoly/playerColors'
 
 const W = 1.85
 const H = 0.45
@@ -33,15 +33,15 @@ export type BoardWoodTextures = {
 
 type Props = {
   cell: BoardCellDef
-  showBuilding: boolean
-  buildingHeight: number
+  /** 0 無建物；1～4 戶；5 旅館 */
+  buildingLevel: number
   /** 有地主時傳玩家 id，用於與格線組別色區隔的佔領標記 */
   ownerPlayerId?: number | null
   /** 同色組已湊齊（租金加倍） */
   isFullSet?: boolean
   /** 格心在棋盤上的 world (x,z)，用來決定色條貼在朝向中心的那一邊 */
   worldXZ: [number, number]
-  /** 木紋套圖；未傳則維持純色 */
+  /** 木紋套圖；未傳則維持純色（全棋盤共用同一套 Texture，不重複 clone） */
   boardTex?: BoardWoodTextures | null
 }
 
@@ -105,8 +105,7 @@ const HIDE_DELAY_MS = 220
 
 export function TileCube({
   cell,
-  showBuilding,
-  buildingHeight,
+  buildingLevel,
   ownerPlayerId = null,
   isFullSet = false,
   worldXZ,
@@ -160,8 +159,6 @@ export function TileCube({
   const edge = inwardEdgeFromBoardPosition(worldXZ[0], worldXZ[1])
   const yTop = H / 2 + 0.021
   const isGo = cell.kind === 'go'
-  const buildingColor = ownerPlayerId != null ? playerColor(ownerPlayerId) : '#fbbf24'
-
   const bodyColor = useMemo(() => {
     if (isGo) return '#f0ebe3'
     const mix = owned ? 0.085 : 0.14
@@ -184,23 +181,6 @@ export function TileCube({
 
   const bodyTint = useMemo(() => new THREE.Color(bodyColor), [bodyColor])
   const topTint = useMemo(() => new THREE.Color(topFaceColor), [topFaceColor])
-
-  const topWoodMaps = useMemo(() => {
-    if (!boardTex) return null
-    const d = boardTex.woodDiff.clone()
-    const n = boardTex.woodNor.clone()
-    const r = boardTex.woodRough.clone()
-    d.wrapS = d.wrapT = THREE.RepeatWrapping
-    n.wrapS = n.wrapT = THREE.RepeatWrapping
-    r.wrapS = r.wrapT = THREE.RepeatWrapping
-    d.repeat.set(5.2, 5.2)
-    n.repeat.set(5.2, 5.2)
-    r.repeat.set(5.2, 5.2)
-    d.needsUpdate = true
-    n.needsUpdate = true
-    r.needsUpdate = true
-    return { d, n, r }
-  }, [boardTex])
 
   return (
     <group>
@@ -234,12 +214,12 @@ export function TileCube({
       </RoundedBox>
       <mesh position={[0, H / 2 + 0.018, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[W * TOP, D * TOP]} />
-        {boardTex && topWoodMaps ? (
+        {boardTex ? (
           isGo ? (
             <meshStandardMaterial
-              map={topWoodMaps.d}
-              normalMap={topWoodMaps.n}
-              roughnessMap={topWoodMaps.r}
+              map={boardTex.woodDiff}
+              normalMap={boardTex.woodNor}
+              roughnessMap={boardTex.woodRough}
               color="#fff8e8"
               roughness={1}
               metalness={0.06}
@@ -249,9 +229,9 @@ export function TileCube({
             />
           ) : (
             <meshStandardMaterial
-              map={topWoodMaps.d}
-              normalMap={topWoodMaps.n}
-              roughnessMap={topWoodMaps.r}
+              map={boardTex.woodDiff}
+              normalMap={boardTex.woodNor}
+              roughnessMap={boardTex.woodRough}
               color={topTint}
               roughness={1}
               metalness={0.05}
@@ -351,15 +331,35 @@ export function TileCube({
         onCardPointerEnter={onCardPointerEnter}
         onCardPointerLeave={onCardPointerLeave}
       />
-      {showBuilding && buildingHeight > 0.05 && (
-        <mesh position={[0, H / 2 + buildingHeight / 2 + 0.02, -0.14]} castShadow>
-          <boxGeometry args={[0.5, buildingHeight, 0.5]} />
+      {cell.kind === 'property' && buildingLevel > 0 && buildingLevel < 5 && (
+        <group position={[0, H / 2 + 0.06, -0.13]}>
+          {Array.from({ length: buildingLevel }).map((_, i) => {
+            const spread = 0.2
+            const cx = (i - (buildingLevel - 1) / 2) * spread
+            return (
+              <mesh key={i} position={[cx, 0.07, 0]} castShadow>
+                <boxGeometry args={[0.16, 0.12, 0.16]} />
+                <meshStandardMaterial
+                  color="#16a34a"
+                  roughness={0.45}
+                  metalness={0.12}
+                  emissive="#14532d"
+                  emissiveIntensity={0.08}
+                />
+              </mesh>
+            )
+          })}
+        </group>
+      )}
+      {cell.kind === 'property' && buildingLevel >= 5 && (
+        <mesh position={[0, H / 2 + 0.22, -0.13]} castShadow>
+          <boxGeometry args={[0.48, 0.26, 0.42]} />
           <meshStandardMaterial
-            color={buildingColor}
-            roughness={0.4}
-            metalness={0.25}
-            emissive={buildingColor}
-            emissiveIntensity={0.2}
+            color="#b91c1c"
+            roughness={0.35}
+            metalness={0.28}
+            emissive="#7f1d1d"
+            emissiveIntensity={0.12}
           />
         </mesh>
       )}

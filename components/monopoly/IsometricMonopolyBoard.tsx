@@ -9,6 +9,8 @@ import { BOARD } from '@/lib/monopoly/board'
 import type { GameAction } from '@/lib/monopoly/engine'
 import type { GameState } from '@/lib/monopoly/types'
 import { GO_BONUS, MONOPOLY_RENT_MULTIPLIER } from '@/lib/monopoly/types'
+import { canBuildHouse, canSellHouse, houseCostForGroup } from '@/lib/monopoly/houseRules'
+import { PROPERTY_GROUPS, type PropertyGroupKey } from '@/lib/monopoly/propertyGroups'
 import { mascotLabelForPlayerId, mascotLegendLine } from '@/lib/monopoly/mascots'
 import { GameButton } from './GameButton'
 import { MonopolyScene } from './isometric/MonopolyScene'
@@ -72,6 +74,13 @@ export function IsometricMonopolyBoard({
     return () => window.clearTimeout(t)
   }, [state.moneyFx, dispatch])
 
+  useEffect(() => {
+    if (!state.fullSetToast) return
+    const id = state.fullSetToast.id
+    const t = window.setTimeout(() => dispatch({ type: 'CLEAR_FULL_SET_TOAST', id }), 4200)
+    return () => window.clearTimeout(t)
+  }, [state.fullSetToast, dispatch])
+
   const onRestart = () => {
     startGame()
     setResetSeq((s) => s + 1)
@@ -88,6 +97,26 @@ export function IsometricMonopolyBoard({
         Canvas 預設會吃掉全區點擊；改為 pointer-events-none 讓底部按鈕／設定可點。
         若之後要在場景內互動，再在子元件用 pointer-events-auto。
       */}
+      <AnimatePresence>
+        {state.fullSetToast && (
+          <motion.div
+            key={state.fullSetToast.id}
+            initial={{ opacity: 0, y: -10, scale: 0.94 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -6 }}
+            className="pointer-events-none absolute left-1/2 top-[4.25rem] z-[55] w-[min(92%,320px)] -translate-x-1/2 rounded-2xl border-2 border-amber-200 bg-gradient-to-r from-amber-50 via-white to-amber-50 px-3 py-2 text-center shadow-[0_16px_40px_rgba(245,158,11,0.35)] backdrop-blur-md sm:top-[4.5rem]"
+          >
+            <p className="text-[10px] font-bold uppercase tracking-wider text-amber-600">同色組完成</p>
+            <p className="mt-0.5 text-sm font-extrabold text-slate-800">
+              {state.players[state.fullSetToast.playerId]?.name ?? '玩家'} 湊齊「
+              {PROPERTY_GROUPS[state.fullSetToast.groupKey as PropertyGroupKey]?.label ?? state.fullSetToast.groupKey}
+              」！
+            </p>
+            <p className="mt-0.5 text-[11px] font-semibold text-amber-800">可蓋房升級 · 租金依建物計算</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <Canvas
         shadows
         dpr={[1, 1.5]}
@@ -119,6 +148,35 @@ export function IsometricMonopolyBoard({
       </Canvas>
 
       {fullScreenDiceOverlay}
+
+      <AnimatePresence>
+        {state.drawnCard && (
+          <motion.div
+            key={`card-${state.drawnCard.id}`}
+            initial={{ opacity: 0, y: 10, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 6, scale: 0.98 }}
+            className="pointer-events-auto absolute left-1/2 top-[5.75rem] z-[60] w-[min(92%,380px)] -translate-x-1/2 sm:top-[5.25rem]"
+          >
+            <button
+              type="button"
+              onClick={() => dispatch({ type: 'CLEAR_DRAWN_CARD', id: state.drawnCard!.id })}
+              className="w-full rounded-3xl border-2 border-white/80 bg-white/95 p-4 text-left shadow-[0_18px_60px_rgba(2,6,23,0.22)] backdrop-blur-xl"
+              title="點一下關閉"
+            >
+              <p
+                className={`text-[10px] font-black uppercase tracking-[0.28em] ${
+                  state.drawnCard.kind === 'chance' ? 'text-violet-600' : 'text-amber-700'
+                }`}
+              >
+                {state.drawnCard.title}
+              </p>
+              <p className="mt-1 text-base font-extrabold text-slate-900">{state.drawnCard.text}</p>
+              <p className="mt-2 text-[11px] font-semibold text-slate-600">（點一下關閉）</p>
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {cameraFollowPlayerId != null && state.phase !== 'gameover' && (
@@ -188,6 +246,18 @@ export function IsometricMonopolyBoard({
                 <p className="max-w-full truncate font-mono text-[9px] font-bold tabular-nums leading-none text-violet-700">
                   ${p.money}
                 </p>
+                <div className="mt-0.5 flex min-h-[6px] flex-wrap justify-center gap-0.5">
+                  {(Object.keys(PROPERTY_GROUPS) as PropertyGroupKey[]).map((g) =>
+                    state.fullSetOwners[g] === p.id ? (
+                      <span
+                        key={g}
+                        title={PROPERTY_GROUPS[g].label}
+                        className="h-1.5 w-1.5 rounded-full ring-1 ring-white/90"
+                        style={{ background: PROPERTY_GROUPS[g].color }}
+                      />
+                    ) : null,
+                  )}
+                </div>
                 <div className="h-1 w-full overflow-hidden rounded-full bg-violet-100">
                   <div
                     className="h-full rounded-full transition-all duration-500"
@@ -239,6 +309,18 @@ export function IsometricMonopolyBoard({
                   <p className="truncate text-xs font-extrabold text-slate-800">{names[i] || `玩家${i + 1}`}</p>
                   <p className="truncate text-[10px] font-semibold text-violet-600">棋子：{mascotLabelForPlayerId(p.id)}</p>
                   <p className="font-mono text-sm font-bold text-violet-700">${p.money}</p>
+                  <div className="mt-1 flex min-h-[8px] flex-wrap gap-0.5">
+                    {(Object.keys(PROPERTY_GROUPS) as PropertyGroupKey[]).map((g) =>
+                      state.fullSetOwners[g] === p.id ? (
+                        <span
+                          key={g}
+                          title={PROPERTY_GROUPS[g].label}
+                          className="h-2 w-2 rounded-full ring-1 ring-white/90"
+                          style={{ background: PROPERTY_GROUPS[g].color }}
+                        />
+                      ) : null,
+                    )}
+                  </div>
                   <div className="mt-1 h-2 overflow-hidden rounded-full bg-violet-100">
                     <div
                       className="h-full rounded-full transition-all duration-500"
@@ -290,6 +372,19 @@ export function IsometricMonopolyBoard({
                   <>
                     {current.inJail ? (
                       <>
+                        {current.getOutOfJailCards > 0 && (
+                          <GameButton
+                            type="button"
+                            variant="secondary"
+                            disabled={isRolling}
+                            onClick={() => {
+                              lockCameraOnRoller()
+                              beginFullScreenDice('jail_card', current.name)
+                            }}
+                          >
+                            使用出獄卡（剩 {current.getOutOfJailCards}）並擲骰
+                          </GameButton>
+                        )}
                         <GameButton
                           type="button"
                           variant="orange"
@@ -326,6 +421,57 @@ export function IsometricMonopolyBoard({
                         🎲 擲骰
                       </GameButton>
                     )}
+                    {state.phase === 'roll' &&
+                      !current.inJail &&
+                      BOARD.some(
+                        (c, i) =>
+                          c.kind === 'property' &&
+                          state.owners[i] === current.id &&
+                          state.fullSetOwners[c.group] === current.id,
+                      ) && (
+                        <div className="max-h-[min(28vh,200px)] overflow-y-auto rounded-xl border border-violet-100 bg-violet-50/70 p-1.5 text-left">
+                          <p className="mb-1 text-[10px] font-extrabold uppercase tracking-wide text-violet-600">
+                            蓋房／賣房
+                          </p>
+                          {BOARD.map((cell, i) => {
+                            if (cell.kind !== 'property') return null
+                            if (state.owners[i] !== current.id) return null
+                            if (state.fullSetOwners[cell.group] !== current.id) return null
+                            const b = state.buildings[i] ?? 0
+                            const bl = b === 0 ? '無建物' : b === 5 ? '旅館' : `${b} 戶`
+                            const cost = houseCostForGroup(cell.group)
+                            const canB = canBuildHouse(state, i, current.id)
+                            const canS = canSellHouse(state, i, current.id)
+                            return (
+                              <div
+                                key={cell.id}
+                                className="mb-1 flex flex-wrap items-center gap-1 rounded-lg bg-white/80 px-1 py-0.5 text-[10px] last:mb-0"
+                              >
+                                <span className="min-w-0 flex-1 truncate font-semibold text-slate-800">{cell.name}</span>
+                                <span className="shrink-0 text-violet-600">{bl}</span>
+                                <button
+                                  type="button"
+                                  disabled={!canB || isRolling}
+                                  onClick={() => dispatch({ type: 'BUILD_HOUSE', cellIndex: i })}
+                                  className="shrink-0 rounded-md bg-emerald-500 px-1.5 py-0.5 font-bold text-white disabled:opacity-35"
+                                  title={`蓋房 $${cost}`}
+                                >
+                                  +
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={!canS || isRolling}
+                                  onClick={() => dispatch({ type: 'SELL_HOUSE', cellIndex: i })}
+                                  className="shrink-0 rounded-md bg-rose-400 px-1.5 py-0.5 font-bold text-white disabled:opacity-35"
+                                  title="賣房（半價）"
+                                >
+                                  −
+                                </button>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
                   </>
                 )}
                 {state.phase === 'buy_prompt' && (() => {
@@ -404,7 +550,7 @@ export function IsometricMonopolyBoard({
                 重新開始
               </GameButton>
               <p className="mt-2 text-[9px] leading-relaxed text-slate-500">
-                規則：40 格；經過起點 +{GO_BONUS}；同色一組買齊租金×{MONOPOLY_RENT_MULTIPLIER}；鐵路／公共事業依持有數計租；破產資產充公。
+                規則：40 格；經過起點 +{GO_BONUS}；未蓋房前同色一組買齊租金×{MONOPOLY_RENT_MULTIPLIER}；蓋房後依建物租金表；鐵路／公共事業依持有數計租；破產建物清空。
               </p>
             </motion.div>
           )}

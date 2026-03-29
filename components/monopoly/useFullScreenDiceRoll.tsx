@@ -17,7 +17,7 @@ type OverlayState =
       id: number
       d1: number
       d2: number
-      mode: 'roll' | 'jail_pay'
+      mode: 'roll' | 'jail_pay' | 'jail_card'
       phase: 'spinning' | 'reveal'
       rollerName: string
     }
@@ -44,7 +44,7 @@ export function useFullScreenDiceRoll(dispatch: Dispatch<GameAction>) {
     }
   }, [])
 
-  const begin = useCallback((mode: 'roll' | 'jail_pay', rollerName: string) => {
+  const begin = useCallback((mode: 'roll' | 'jail_pay' | 'jail_card', rollerName: string) => {
     const [d1, d2] = rollTwoDice()
     const id = ++rollIdRef.current
     activeRollIdRef.current = id
@@ -63,7 +63,8 @@ export function useFullScreenDiceRoll(dispatch: Dispatch<GameAction>) {
       if (activeRollIdRef.current !== id) return
       try {
         if (mode === 'roll') dispatch({ type: 'ROLL', d1, d2 })
-        else dispatch({ type: 'JAIL_PAY', d1, d2 })
+        else if (mode === 'jail_pay') dispatch({ type: 'JAIL_PAY', d1, d2 })
+        else dispatch({ type: 'USE_JAIL_CARD', d1, d2 })
       } finally {
         setOverlay(null)
       }

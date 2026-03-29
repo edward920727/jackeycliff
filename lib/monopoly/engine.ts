@@ -2,6 +2,7 @@ import { BOARD } from './board'
 import type { BoardCellDef, GameState, PlayerState } from './types'
 import { BOARD_LEN, GO_BONUS, JAIL_POSITION, MONOPOLY_RENT_MULTIPLIER } from './types'
 import { PROPERTY_GROUPS, propertyGroupKeys } from './propertyGroups'
+import { canBuildHouse, canSellHouse, houseCostForGroup, sellHouseRefund } from './houseRules'
 
 function randDie() {
   return 1 + Math.floor(Math.random() * 6)
@@ -18,16 +19,39 @@ export function rollTwoDice(): [number, number] {
   return [randDie(), randDie()]
 }
 
-/** 機會／命運效果（簡化版） */
-const CHANCE_EFFECTS = [
-  { text: '銀行發放股利，獲得 $150。', money: 150 },
-  { text: '繳納醫藥費 $50。', money: -50 },
-  { text: '遺產繼承 $100。', money: 100 },
-  { text: '被罰超速 $15。', money: -15 },
-  { text: '參加猜謎獲獎 $25。', money: 25 },
-  { text: '旅遊基金：退回起點並領 $200。', gotoGo: true },
-  { text: '進入監獄。', jail: true },
-] as const
+type DrawnCard = { kind: 'chance' | 'chest'; title: string; text: string }
+type CardEffect =
+  | ({ kind: 'chance' | 'chest'; title: string; text: string } & { money: number })
+  | ({ kind: 'chance' | 'chest'; title: string; text: string } & { goto: number })
+  | ({ kind: 'chance' | 'chest'; title: string; text: string } & { gotoNearest: 'railroad' | 'utility' })
+  | ({ kind: 'chance' | 'chest'; title: string; text: string } & { move: number })
+  | ({ kind: 'chance' | 'chest'; title: string; text: string } & { jail: true })
+  | ({ kind: 'chance' | 'chest'; title: string; text: string } & { getOutOfJail: true })
+  | ({ kind: 'chance' | 'chest'; title: string; text: string } & { repairs: { house: number; hotel: number } })
+
+const CHANCE_DECK: CardEffect[] = [
+  { kind: 'chance', title: '機會', text: '前進到起點（領取 $200）。', goto: 0 },
+  { kind: 'chance', title: '機會', text: '前進到最近的鐵路。', gotoNearest: 'railroad' },
+  { kind: 'chance', title: '機會', text: '前進到最近的公共事業。', gotoNearest: 'utility' },
+  { kind: 'chance', title: '機會', text: '前進到「台北101」。', goto: 26 },
+  { kind: 'chance', title: '機會', text: '後退 3 格。', move: -3 },
+  { kind: 'chance', title: '機會', text: '銀行發放股利，獲得 $150。', money: 150 },
+  { kind: 'chance', title: '機會', text: '超速罰款 $15。', money: -15 },
+  { kind: 'chance', title: '機會', text: '房屋修繕費：每戶 $25、每旅館 $100。', repairs: { house: 25, hotel: 100 } },
+  { kind: 'chance', title: '機會', text: '取得出獄卡（保留）。', getOutOfJail: true },
+  { kind: 'chance', title: '機會', text: '進入監獄。', jail: true },
+]
+
+const CHEST_DECK: CardEffect[] = [
+  { kind: 'chest', title: '命運', text: '銀行錯帳：獲得 $200。', money: 200 },
+  { kind: 'chest', title: '命運', text: '醫療費 $50。', money: -50 },
+  { kind: 'chest', title: '命運', text: '所得退稅：獲得 $20。', money: 20 },
+  { kind: 'chest', title: '命運', text: '生日快樂：獲得 $10。', money: 10 },
+  { kind: 'chest', title: '命運', text: '保險到期：獲得 $100。', money: 100 },
+  { kind: 'chest', title: '命運', text: '房屋修繕費：每戶 $40、每旅館 $115。', repairs: { house: 40, hotel: 115 } },
+  { kind: 'chest', title: '命運', text: '取得出獄卡（保留）。', getOutOfJail: true },
+  { kind: 'chest', title: '命運', text: '進入監獄。', jail: true },
+]
 
 function countRailroadsOwned(owners: (number | null)[], playerId: number): number {
   return owners.filter((o, i) => {
@@ -102,11 +126,16 @@ export function computeRent(cellIndex: number, state: GameState): number {
   }
 
   if (cell.kind === 'property') {
-    let r = cell.baseRent
-    if (state.fullSetOwners[cell.group] === owner) {
-      r = Math.round(cell.baseRent * MONOPOLY_RENT_MULTIPLIER)
+    const h = state.buildings[cellIndex] ?? 0
+    if (h === 0) {
+      let r = cell.baseRent
+      if (state.fullSetOwners[cell.group] === owner) {
+        r = Math.round(cell.baseRent * MONOPOLY_RENT_MULTIPLIER)
+      }
+      return r
     }
-    return r
+    if (h >= 1 && h <= 4) return cell.houseRents[h - 1]!
+    return cell.houseRents[4]!
   }
 
   return 0
@@ -185,6 +214,40 @@ function movePlayer(
   }
 }
 
+function gotoIndex(
+  p: PlayerState,
+  idx: number,
+  collectGo: boolean
+): { player: PlayerState; passedGo: boolean } {
+  const old = p.position
+  const passedGo = collectGo && idx < old
+  let money = p.money
+  if (passedGo) money += GO_BONUS
+  return { player: { ...p, position: idx, money }, passedGo }
+}
+
+function findNearest(from: number, kind: 'railroad' | 'utility'): number {
+  for (let step = 1; step <= BOARD_LEN + 1; step++) {
+    const idx = (from + step) % BOARD_LEN
+    if (BOARD[idx].kind === kind) return idx
+  }
+  return from
+}
+
+function countHousesAndHotels(state: GameState, ownerId: number): { houses: number; hotels: number } {
+  let houses = 0
+  let hotels = 0
+  for (let i = 0; i < BOARD.length; i++) {
+    const c = BOARD[i]
+    if (c.kind !== 'property') continue
+    if (state.owners[i] !== ownerId) continue
+    const b = state.buildings[i] ?? 0
+    if (b >= 1 && b <= 4) houses += b
+    if (b >= 5) hotels += 1
+  }
+  return { houses, hotels }
+}
+
 export function createInitialState(names: string[]): GameState {
   const players: PlayerState[] = names.map((name, id) => ({
     id,
@@ -193,15 +256,22 @@ export function createInitialState(names: string[]): GameState {
     position: 0,
     inJail: false,
     jailTurns: 0,
+    getOutOfJailCards: 0,
     bankrupt: false,
   }))
   const owners = Array(BOARD_LEN).fill(null) as (number | null)[]
+  const buildings = Array(BOARD_LEN).fill(0) as number[]
   return {
     players,
     owners,
+    buildings,
     fullSetOwners: computeFullSetOwners(owners),
+    fullSetToast: null,
+    fullSetToastSeq: 0,
     moneyFx: null,
     moneyFxSeq: 0,
+    drawnCard: null,
+    drawnCardSeq: 0,
     currentPlayer: 0,
     phase: 'roll',
     dice: null,
@@ -219,6 +289,11 @@ export type GameAction =
   | { type: 'BUY' }
   | { type: 'SKIP_BUY' }
   | { type: 'CLEAR_MONEY_FX'; id: number }
+  | { type: 'BUILD_HOUSE'; cellIndex: number }
+  | { type: 'SELL_HOUSE'; cellIndex: number }
+  | { type: 'CLEAR_FULL_SET_TOAST'; id: number }
+  | { type: 'CLEAR_DRAWN_CARD'; id: number }
+  | { type: 'USE_JAIL_CARD'; d1?: number; d2?: number }
 
 function getCurrent(state: GameState): PlayerState {
   return state.players[state.currentPlayer]
@@ -281,37 +356,69 @@ function resolveLanding(state: GameState, movedPlayer: PlayerState, passedGoMsg:
   }
 
   if (cell.kind === 'chance' || cell.kind === 'chest') {
-    const effect = CHANCE_EFFECTS[Math.floor(Math.random() * CHANCE_EFFECTS.length)]
-    let cardLine = ''
-    if ('money' in effect && typeof effect.money === 'number') {
-      const p = players.find((x) => x.id === pid)!
-      const after = { ...p, money: p.money + effect.money }
-      players = players.map((x) => (x.id === pid ? after : x))
-      cardLine = effect.text
-      if (after.money < 0) {
-        return bankruptPlayer({ ...base, players }, pid)
-      }
-    } else if ('gotoGo' in effect && effect.gotoGo) {
-      const p = players.find((x) => x.id === pid)!
-      const after = { ...p, position: 0, money: p.money + GO_BONUS }
-      players = players.map((x) => (x.id === pid ? after : x))
-      cardLine = effect.text
+    const deck = cell.kind === 'chance' ? CHANCE_DECK : CHEST_DECK
+    const effect = deck[Math.floor(Math.random() * deck.length)]!
+    let card: DrawnCard = { kind: effect.kind, title: effect.title, text: effect.text }
+
+    const curP = players.find((x) => x.id === pid)!
+    let updatedP: PlayerState = curP
+    let extraLine = ''
+
+    if ('money' in effect) {
+      updatedP = { ...updatedP, money: updatedP.money + effect.money }
+      extraLine = effect.money >= 0 ? ` +$${effect.money}` : ` -$${Math.abs(effect.money)}`
+    } else if ('getOutOfJail' in effect) {
+      updatedP = { ...updatedP, getOutOfJailCards: (updatedP.getOutOfJailCards ?? 0) + 1 }
+    } else if ('repairs' in effect) {
+      const { houses, hotels } = countHousesAndHotels(state, pid)
+      const fee = houses * effect.repairs.house + hotels * effect.repairs.hotel
+      updatedP = { ...updatedP, money: updatedP.money - fee }
+      extraLine = ` 修繕費 $${fee}（戶:${houses} 旅館:${hotels}）`
     } else if ('jail' in effect && effect.jail) {
-      const p = players.find((x) => x.id === pid)!
-      const after = {
-        ...p,
-        position: JAIL_POSITION,
-        inJail: true,
-        jailTurns: 0,
-      }
-      players = players.map((x) => (x.id === pid ? after : x))
-      cardLine = effect.text
+      updatedP = { ...updatedP, position: JAIL_POSITION, inJail: true, jailTurns: 0 }
+    } else if ('move' in effect) {
+      const res = movePlayer(updatedP, effect.move, false)
+      updatedP = res.player
+    } else if ('goto' in effect) {
+      const res = gotoIndex(updatedP, effect.goto, true)
+      updatedP = res.player
+    } else if ('gotoNearest' in effect) {
+      const target = findNearest(updatedP.position, effect.gotoNearest)
+      const res = gotoIndex(updatedP, target, true)
+      updatedP = res.player
     }
+
+    players = players.map((x) => (x.id === pid ? updatedP : x))
+    if (updatedP.money < 0) {
+      return bankruptPlayer({ ...base, players }, pid)
+    }
+
+    // 若移動到別格，繼續結算該格（但保留抽卡 UI）
+    const movedTo = updatedP.position
+    if (movedTo !== cellIndex && !updatedP.inJail) {
+      const s2 = resolveLanding(
+        {
+          ...base,
+          players,
+        },
+        updatedP,
+        false,
+      )
+      return {
+        ...s2,
+        drawnCard: { id: s2.drawnCardSeq + 1, kind: card.kind, title: card.title, text: card.text },
+        drawnCardSeq: s2.drawnCardSeq + 1,
+        lastMessage: `${lastMessage} 抽卡：${card.text}${extraLine}`,
+      }
+    }
+
     return {
       ...base,
       players,
+      drawnCard: { id: base.drawnCardSeq + 1, kind: card.kind, title: card.title, text: card.text },
+      drawnCardSeq: base.drawnCardSeq + 1,
       phase: 'roll',
-      lastMessage: `${lastMessage} 抽卡：${cardLine}`,
+      lastMessage: `${lastMessage} 抽卡：${card.text}${extraLine}`,
       dice: null,
       currentPlayer: nextAliveIndex({ ...base, players }, base.currentPlayer),
     }
@@ -397,6 +504,58 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return { ...state, moneyFx: null }
     }
 
+    case 'CLEAR_FULL_SET_TOAST': {
+      if (!state.fullSetToast || state.fullSetToast.id !== action.id) return state
+      return { ...state, fullSetToast: null }
+    }
+
+    case 'CLEAR_DRAWN_CARD': {
+      if (!state.drawnCard || state.drawnCard.id !== action.id) return state
+      return { ...state, drawnCard: null }
+    }
+
+    case 'BUILD_HOUSE': {
+      if (state.phase !== 'roll') return state
+      const cur = getCurrent(state)
+      if (cur.bankrupt) return state
+      if (!canBuildHouse(state, action.cellIndex, cur.id)) return state
+      const cell = BOARD[action.cellIndex]
+      if (cell.kind !== 'property') return state
+      const cost = houseCostForGroup(cell.group)
+      const buildings = [...state.buildings]
+      buildings[action.cellIndex] = (buildings[action.cellIndex] ?? 0) + 1
+      const players = state.players.map((p) => (p.id === cur.id ? { ...p, money: p.money - cost } : p))
+      const np = players.find((x) => x.id === cur.id)!
+      if (np.money < 0) {
+        return bankruptPlayer({ ...state, buildings, players }, cur.id)
+      }
+      return {
+        ...state,
+        buildings,
+        players,
+        lastMessage: `在「${cell.name}」升級建物（-$${cost}）。`,
+      }
+    }
+
+    case 'SELL_HOUSE': {
+      if (state.phase !== 'roll') return state
+      const cur = getCurrent(state)
+      if (cur.bankrupt) return state
+      if (!canSellHouse(state, action.cellIndex, cur.id)) return state
+      const cell = BOARD[action.cellIndex]
+      if (cell.kind !== 'property') return state
+      const refund = sellHouseRefund(cell.group)
+      const buildings = [...state.buildings]
+      buildings[action.cellIndex] = Math.max(0, (buildings[action.cellIndex] ?? 0) - 1)
+      const players = state.players.map((p) => (p.id === cur.id ? { ...p, money: p.money + refund } : p))
+      return {
+        ...state,
+        buildings,
+        players,
+        lastMessage: `賣出「${cell.name}」建物（+$${refund}）。`,
+      }
+    }
+
     case 'ROLL': {
       if (state.phase !== 'roll') return state
       const cur = getCurrent(state)
@@ -445,6 +604,19 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return resolveLanding({ ...state, dice: [d1, d2] }, moved, passedGo)
     }
 
+    case 'USE_JAIL_CARD': {
+      if (state.phase !== 'roll') return state
+      const cur = getCurrent(state)
+      if (!cur.inJail || cur.bankrupt) return state
+      if ((cur.getOutOfJailCards ?? 0) <= 0) return state
+      const freed = { ...cur, inJail: false, jailTurns: 0, getOutOfJailCards: cur.getOutOfJailCards - 1 }
+      const d1 = action.d1 !== undefined ? clampDie(action.d1) : randDie()
+      const d2 = action.d2 !== undefined ? clampDie(action.d2) : randDie()
+      const sum = d1 + d2
+      const { player: moved, passedGo } = movePlayer(freed, sum, true)
+      return resolveLanding({ ...state, dice: [d1, d2] }, moved, passedGo)
+    }
+
     case 'BUY': {
       if (state.phase !== 'buy_prompt') return state
       const cur = getCurrent(state)
@@ -454,9 +626,19 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         return state
       if (state.owners[idx] != null) return state
       if (cur.money < cell.price) return state
+      const prevFull = state.fullSetOwners
       const owners = [...state.owners]
       owners[idx] = cur.id
       const fullSetOwners = computeFullSetOwners(owners)
+      let fullSetToast = state.fullSetToast
+      let fullSetToastSeq = state.fullSetToastSeq
+      for (const g of propertyGroupKeys()) {
+        if (prevFull[g] == null && fullSetOwners[g] != null) {
+          fullSetToastSeq += 1
+          fullSetToast = { id: fullSetToastSeq, groupKey: g, playerId: fullSetOwners[g]! }
+          break
+        }
+      }
       const players = state.players.map((p) =>
         p.id === cur.id ? { ...p, money: p.money - cell.price } : p
       )
@@ -464,6 +646,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         ...state,
         owners,
         fullSetOwners,
+        fullSetToast,
+        fullSetToastSeq,
         players,
         phase: 'roll',
         lastMessage: `購買「${cell.name}」成功！`,
